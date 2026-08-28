@@ -43,7 +43,6 @@ interface DeviceSession {
 		createdAt: Date;
 		updatedAt: Date;
 	};
-	X;
 }
 
 const PRESERVED_QUERY_KEYS = [["auth", "session"], ["device-sessions"]];
