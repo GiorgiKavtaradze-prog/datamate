@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig/default.json",
+  "compilerOptions": {
+    "jsxImportSource": "react"
+  },
+  "include": ["src/**/*"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "**/*.spec.ts",
+    "**/*.spec.tsx"
+  ]
+}

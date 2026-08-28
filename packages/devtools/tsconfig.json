@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig/default.json",
+  "compilerOptions": {
+    "lib": ["dom", "esnext"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "baseUrl": ".",
+    "paths": {
+      "@datamate/ui": ["../ui/src/index.ts"],
+      "@datamate/ui/client": ["../ui/src/client.ts"]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+}

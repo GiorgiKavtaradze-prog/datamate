@@ -1,0 +1,505 @@
+---
+title: Server-Side Feature Flags
+description: Evaluate feature flags on the server in Node.js, API routes, and serverless functions
+---
+
+import { Callout, CodeBlock, Card, Cards } from "@/components/docs";
+
+The Datamate Node SDK includes a server-side feature flags manager optimized for server environments with request deduplication, batching, and stale-while-revalidate caching.
+
+<Callout type="info">
+  **Package**: `@datamate/sdk` | **Import**: `@datamate/sdk/node`
+</Callout>
+
+## Installation
+
+<CodeBlock language="bash">
+  {`bun add @datamate/sdk`}
+</CodeBlock>
+
+## Quick Start
+
+<CodeBlock language="tsx">
+  {`import { createServerFlagsManager } from "@datamate/sdk/node";
+
+const flags = createServerFlagsManager({
+  clientId: process.env.DATAMATE_CLIENT_ID!,
+  user: {
+    userId: "user-123",
+    organizationId: "org-456"
+  }
+});
+
+// Wait for initialization. Server managers only preload flags here when
+// autoFetch is true; getFlag() below fetches this flag on demand.
+await flags.waitForInit();
+
+// Check a flag
+const result = await flags.getFlag("new-feature");
+if (result.enabled) {
+  // Show new feature
+}`}
+</CodeBlock>
+
+## Creating a Manager
+
+### createServerFlagsManager(config)
+
+Creates a new server-side flags manager instance:
+
+<CodeBlock language="tsx">
+  {`import { createServerFlagsManager } from "@datamate/sdk/node";
+
+const flags = createServerFlagsManager({
+  clientId: process.env.DATAMATE_CLIENT_ID!,
+  apiUrl: "https://api.datamate.cc",
+  user: {
+    userId: "user-123",
+    organizationId: "org-456",
+    properties: {
+      role: "admin",
+      workspace_type: "team"
+    }
+  },
+  environment: "production",
+  cacheTtl: 60_000,      // 1 minute cache
+  staleTime: 30_000,     // Revalidate after 30s
+  maxCacheSize: 5000,    // Cap in-memory cache entries
+  debug: false
+});`}
+</CodeBlock>
+
+### Configuration
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `clientId` | `string` | Required | Your client ID |
+| `apiUrl` | `string` | `https://api.datamate.cc` | API endpoint |
+| `user` | `UserContext` | - | User context for targeting |
+| `environment` | `string` | - | Environment name |
+| `cacheTtl` | `number` | `60000` | Cache TTL in ms |
+| `staleTime` | `number` | `30000` | Revalidate after (ms) |
+| `maxCacheSize` | `number` | `5000` | Maximum in-memory cache entries |
+| `autoFetch` | `boolean` | `false` | Fetch all flags on init |
+| `debug` | `boolean` | `false` | Enable debug logging |
+| `disabled` | `boolean` | `false` | Disable flag evaluation |
+
+### User Context
+
+| Option | Type | Description |
+|--------|------|-------------|
+| `userId` | `string` | User identifier for targeting |
+| `email` | `string` | Email for targeting |
+| `organizationId` | `string` | Organization for group rollouts |
+| `teamId` | `string` | Team for group rollouts |
+| `properties` | `object` | Custom properties for targeting |
+
+## Fetching Flags
+
+### getFlag(key, user?)
+
+Fetch a single flag with caching and deduplication:
+
+<CodeBlock language="tsx">
+  {`const result = await flags.getFlag("my-feature");
+
+console.log({
+  enabled: result.enabled,    // boolean
+  value: result.value,        // boolean | string | number
+  variant: result.variant,    // string (for A/B tests)
+  reason: result.reason       // evaluation reason
+});`}
+</CodeBlock>
+
+Override user context for a specific check:
+
+<CodeBlock language="tsx">
+  {`const result = await flags.getFlag("advanced-feature", {
+  userId: "different-user",
+  properties: { role: "admin" }
+});`}
+</CodeBlock>
+
+Per-call user context is sent to the flags API for that evaluation and overrides the manager's default user. Cache entries are isolated by flag key, environment, and the full targeting context (`userId`, `email`, `organizationId`, `teamId`, and `properties`).
+
+### fetchAllFlags(user?)
+
+Pre-fetch all flags for a user before using synchronous reads:
+
+<CodeBlock language="tsx">
+  {`// Fetch all flags upfront
+await flags.fetchAllFlags();
+
+// Now synchronous checks are fast
+const state = flags.isEnabled("feature-1");
+const value = flags.getValue("max-items", 10);`}
+</CodeBlock>
+
+### isEnabled(key)
+
+Synchronous read from cache (call after `fetchAllFlags` or `getFlag`). Returns `FlagState`:
+
+<CodeBlock language="tsx">
+  {`const state = flags.isEnabled("my-feature");
+
+if (state.status === "ready" && state.on) {
+  // Feature is enabled
+}`}
+</CodeBlock>
+
+<CodeBlock language="tsx">
+  {`interface FlagState {
+  on: boolean;
+  status: "ready" | "loading" | "error" | "pending";
+  loading: boolean;
+  value?: boolean | string | number;
+  variant?: string;
+}`}
+</CodeBlock>
+
+### getValue(key, defaultValue)
+
+Get a typed value from cache:
+
+<CodeBlock language="tsx">
+  {`const maxItems = flags.getValue("max-items", 10);
+const theme = flags.getValue<"light" | "dark">("theme", "light");`}
+</CodeBlock>
+
+## Usage Patterns
+
+### Next.js API Routes
+
+<CodeBlock language="tsx" filename="app/api/data/route.ts">
+  {`import { createServerFlagsManager } from "@datamate/sdk/node";
+import { NextResponse } from "next/server";
+
+const flags = createServerFlagsManager({
+  clientId: process.env.DATAMATE_CLIENT_ID!
+});
+
+export async function GET(request: Request) {
+  const userId = request.headers.get("x-user-id");
+  
+  const result = await flags.getFlag("new-api-version", {
+    userId: userId ?? undefined
+  });
+  
+  if (result.enabled) {
+    return NextResponse.json({ version: "v2", data: await getNewData() });
+  }
+  
+  return NextResponse.json({ version: "v1", data: await getLegacyData() });
+}`}
+</CodeBlock>
+
+### Next.js Server Components
+
+<CodeBlock language="tsx" filename="app/dashboard/page.tsx">
+  {`import { createServerFlagsManager } from "@datamate/sdk/node";
+import { auth } from "@/lib/auth";
+
+export default async function DashboardPage() {
+  const session = await auth();
+  
+  const flags = createServerFlagsManager({
+    clientId: process.env.DATAMATE_CLIENT_ID!,
+    user: session?.user ? {
+      userId: session.user.id,
+      organizationId: session.user.organizationId,
+      properties: {
+        role: session.user.role,
+        workspace_type: session.user.workspaceType
+      }
+    } : undefined
+  });
+  
+  const newDashboard = await flags.getFlag("new-dashboard");
+  
+  if (newDashboard.enabled) {
+    return <NewDashboard />;
+  }
+  
+  return <LegacyDashboard />;
+}`}
+</CodeBlock>
+
+### Express Middleware
+
+<CodeBlock language="tsx">
+  {`import express from "express";
+import { createServerFlagsManager } from "@datamate/sdk/node";
+
+const app = express();
+
+// Create a shared manager
+const flags = createServerFlagsManager({
+  clientId: process.env.DATAMATE_CLIENT_ID!,
+  autoFetch: true
+});
+
+// Wait for init
+await flags.waitForInit();
+
+// Middleware to attach flags to request
+app.use(async (req, res, next) => {
+  const userId = req.headers["x-user-id"] as string;
+  
+  req.flags = {
+    isEnabled: async (key: string) => {
+      const result = await flags.getFlag(key, { userId });
+      return result.enabled;
+    }
+  };
+  
+  next();
+});
+
+app.get("/api/feature", async (req, res) => {
+  const enabled = await req.flags.isEnabled("my-feature");
+  res.json({ enabled });
+});`}
+</CodeBlock>
+
+### Serverless Functions
+
+<CodeBlock language="tsx">
+  {`import { createServerFlagsManager } from "@datamate/sdk/node";
+
+// Create manager outside handler for reuse
+const flags = createServerFlagsManager({
+  clientId: process.env.DATAMATE_CLIENT_ID!
+});
+
+export async function handler(event: any) {
+  const userId = event.headers["x-user-id"];
+  
+  const result = await flags.getFlag("feature", { userId });
+  
+  return {
+    statusCode: 200,
+    body: JSON.stringify({
+      enabled: result.enabled,
+      variant: result.variant
+    })
+  };
+}`}
+</CodeBlock>
+
+## Measure Server-Side Outcomes
+
+Server-side flag evaluation does not emit browser exposure events. When a server action, API route, webhook, or job is the source of truth, track the durable outcome on the server and include the flag key and variant. If the outcome belongs to a browser session, send `anonId` and `sessionId` from the client using `getTrackingIds()` and map `anonId` to `anonymousId`.
+
+<CodeBlock language="tsx" filename="client.tsx">
+  {`import { getTrackingIds } from "@datamate/sdk";
+
+async function startExport(format: string) {
+  const { anonId, sessionId } = getTrackingIds();
+
+  await fetch("/api/export", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ anonId, sessionId, format })
+  });
+}`}
+</CodeBlock>
+
+<CodeBlock language="tsx" filename="app/api/export/route.ts">
+  {`import { Datamate, createServerFlagsManager } from "@datamate/sdk/node";
+
+const events = new Datamate({
+  apiKey: process.env.DATAMATE_API_KEY!,
+  websiteId: process.env.DATAMATE_WEBSITE_ID!,
+  source: "server"
+});
+
+const flags = createServerFlagsManager({
+  clientId: process.env.DATAMATE_CLIENT_ID!
+});
+
+export async function POST(request: Request) {
+  const { anonId, sessionId, format } = await request.json();
+  const userId = request.headers.get("x-user-id") ?? undefined;
+
+  const exportFlow = await flags.getFlag("export-flow", { userId });
+  const variant = exportFlow.variant ?? "control";
+  const result = await runExport({ format, variant });
+
+  await events.track({
+    name: "report_exported",
+    anonymousId: anonId,
+    sessionId,
+    properties: {
+      flag_key: "export-flow",
+      variant,
+      status: result.ok ? "success" : "failed",
+      format: result.format
+    }
+  });
+
+  await events.flush();
+  return Response.json({ ok: result.ok });
+}`}
+</CodeBlock>
+
+## Caching Behavior
+
+The server manager uses stale-while-revalidate caching:
+
+1. **Fresh cache**: Returns immediately
+2. **Stale cache**: Returns immediately, revalidates in background
+3. **No cache**: Fetches from API
+
+<CodeBlock language="tsx">
+  {`const flags = createServerFlagsManager({
+  clientId: process.env.DATAMATE_CLIENT_ID!,
+  cacheTtl: 60_000,      // Cache valid for 1 minute
+  staleTime: 30_000,     // Revalidate after 30 seconds
+  maxCacheSize: 5000     // Evict old entries above this size
+});
+
+// First call: fetches from API
+const result1 = await flags.getFlag("my-feature");
+
+// Within 30s: returns cached value (fresh)
+const result2 = await flags.getFlag("my-feature");
+
+// After 30s but within 60s: returns cached, revalidates in background
+const result3 = await flags.getFlag("my-feature");
+
+// After 60s: fetches from API
+const result4 = await flags.getFlag("my-feature");`}
+</CodeBlock>
+
+Expired entries are pruned during cache writes and reads. Long-lived shared managers should keep the default `maxCacheSize` or set a limit that matches their traffic shape, especially when passing per-request users.
+
+## Request Batching
+
+Multiple concurrent flag requests with the same API URL and targeting context are batched automatically:
+
+<CodeBlock language="tsx">
+  {`// These 3 concurrent requests become 1 API call
+const [flag1, flag2, flag3] = await Promise.all([
+  flags.getFlag("feature-1"),
+  flags.getFlag("feature-2"),
+  flags.getFlag("feature-3")
+]);`}
+</CodeBlock>
+
+Requests for different users, organizations, teams, properties, or environments are intentionally sent through separate batches so evaluations cannot mix targeting contexts.
+
+## Request Deduplication
+
+Identical concurrent requests are deduplicated:
+
+<CodeBlock language="tsx">
+  {`// Only 1 API call is made
+const [result1, result2] = await Promise.all([
+  flags.getFlag("same-feature"),
+  flags.getFlag("same-feature")
+]);`}
+</CodeBlock>
+
+## Updating User Context
+
+<CodeBlock language="tsx">
+  {`// Update user for subsequent calls
+flags.updateUser({
+  userId: "new-user",
+  organizationId: "org-456",
+  properties: { role: "admin" }
+});
+
+// Refresh flags for new user
+await flags.refresh();`}
+</CodeBlock>
+
+## Manager Lifecycle
+
+### waitForInit()
+
+Wait for the manager to initialize:
+
+<CodeBlock language="tsx">
+  {`const flags = createServerFlagsManager({
+  clientId: process.env.DATAMATE_CLIENT_ID!,
+  autoFetch: true
+});
+
+await flags.waitForInit();
+// Now all flags are cached`}
+</CodeBlock>
+
+### isReady()
+
+Check if the manager is ready:
+
+<CodeBlock language="tsx">
+  {`if (flags.isReady()) {
+  // Safe to use synchronous reads
+  const state = flags.isEnabled("my-feature");
+}`}
+</CodeBlock>
+
+### destroy()
+
+Clean up resources:
+
+<CodeBlock language="tsx">
+  {`flags.destroy();`}
+</CodeBlock>
+
+## Singleton Pattern
+
+For most applications, create a single manager instance:
+
+<CodeBlock language="tsx" filename="lib/flags.ts">
+  {`import { createServerFlagsManager } from "@datamate/sdk/node";
+
+let flagsManager: ReturnType<typeof createServerFlagsManager> | null = null;
+
+export function getFlags() {
+  if (!flagsManager) {
+    flagsManager = createServerFlagsManager({
+      clientId: process.env.DATAMATE_CLIENT_ID!,
+      autoFetch: true,
+      maxCacheSize: 5000
+    });
+  }
+  return flagsManager;
+}`}
+</CodeBlock>
+
+<CodeBlock language="tsx" filename="In your routes">
+  {`import { getFlags } from "@/lib/flags";
+
+const flags = getFlags();
+const result = await flags.getFlag("my-feature", { userId });`}
+</CodeBlock>
+
+## TypeScript Types
+
+<CodeBlock language="tsx">
+  {`import {
+  createServerFlagsManager,
+  ServerFlagsManager,
+  type FlagsConfig,
+  type FlagResult,
+  type FlagState,
+  type UserContext
+} from "@datamate/sdk/node";`}
+</CodeBlock>
+
+## Related
+
+<Cards>
+  <Card title="Feature Flags (Client)" href="/docs/sdk/feature-flags">
+    React and Vue feature flag hooks
+  </Card>
+  <Card title="Node SDK" href="/docs/sdk/node">
+    Server-side event tracking
+  </Card>
+  <Card title="Configuration" href="/docs/sdk/configuration">
+    All configuration options
+  </Card>
+</Cards>

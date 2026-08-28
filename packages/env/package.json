@@ -1,0 +1,31 @@
+{
+  "name": "@datamate/env",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./app": {
+      "types": "./src/app.ts",
+      "default": "./src/app.ts"
+    },
+    "./boolean": {
+      "types": "./src/boolean.ts",
+      "default": "./src/boolean.ts"
+    },
+    "./public": {
+      "types": "./src/public.ts",
+      "default": "./src/public.ts"
+    }
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "bun test src"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "typescript": "catalog:"
+  }
+}

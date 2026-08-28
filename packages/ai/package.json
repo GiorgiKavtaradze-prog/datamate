@@ -1,0 +1,76 @@
+{
+  "name": "@datamate/ai",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./agent": "./src/agent/index.ts",
+    "./agent/errors": "./src/agent/errors.ts",
+    "./agent/feedback": "./src/agent/feedback.ts",
+    "./agents/analytics": "./src/ai/agents/analytics.ts",
+    "./agents/cache": "./src/ai/agents/cache.ts",
+    "./agents/execution": "./src/ai/agents/execution.ts",
+    "./agents/router": "./src/ai/agents/router.ts",
+    "./agents/types": "./src/ai/agents/types.ts",
+    "./config/context": "./src/ai/config/context.ts",
+    "./config/models": "./src/ai/config/models.ts",
+    "./lib/accessible-websites": "./src/lib/accessible-websites.ts",
+    "./lib/ai-logger": "./src/lib/ai-logger.ts",
+    "./lib/datamate": "./src/lib/datamate.ts",
+    "./lib/date-presets": "./src/lib/date-presets.ts",
+    "./lib/supermemory": "./src/lib/supermemory.ts",
+    "./lib/request-logger": "./src/lib/request-logger.ts",
+    "./lib/tracing": "./src/lib/tracing.ts",
+    "./lib/usage-telemetry": "./src/lib/usage-telemetry.ts",
+    "./lib/website-utils": "./src/lib/website-utils.ts",
+    "./mcp/http": "./src/mcp/http.ts",
+    "./mcp/tools": "./src/ai/mcp/tools.ts",
+    "./tools/toolkit": "./src/ai/tools/toolkit.ts",
+    "./tools/scrape-page": "./src/ai/tools/scrape-page.ts",
+    "./tools/search-console": "./src/ai/tools/search-console.ts",
+    "./tools/utils/oauth-token": "./src/ai/tools/utils/oauth-token.ts",
+    "./query": "./src/query/index.ts",
+    "./query/builders": "./src/query/builders/index.ts",
+    "./query/date-utils": "./src/query/date-utils.ts",
+    "./query/types": "./src/query/types.ts"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "bun test",
+    "test:stripe-revenue:e2e": "CLICKHOUSE_INTEGRATION_TESTS=true STRIPE_REVENUE_E2E=true bun test src/query/builders/stripe-revenue.e2e.integration.test.ts"
+  },
+  "dependencies": {
+    "@ai-sdk/provider": "^3.0.5",
+    "@datamate/api-keys": "workspace:*",
+    "@datamate/auth": "workspace:*",
+    "@datamate/db": "workspace:*",
+    "@datamate/redis": "workspace:*",
+    "@datamate/rpc": "workspace:*",
+    "@datamate/sdk": "workspace:*",
+    "@datamate/services": "workspace:*",
+    "@datamate/shared": "workspace:*",
+    "@datamate/validation": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.26.0",
+    "@orpc/server": "^1.14.0",
+    "ai": "^6.0.188",
+    "dayjs": "^1.11.19",
+    "drizzle-orm": "catalog:",
+    "evlog": "catalog:",
+    "supermemory": "^4.17.0",
+    "tokenlens": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@types/bun": "catalog:",
+    "@types/node": "^26.0.0",
+    "typescript": "catalog:",
+    "vitest": "^4.1.5"
+  },
+  "peerDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

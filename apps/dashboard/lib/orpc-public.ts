@@ -1,0 +1,13 @@
+import { publicConfig } from "@datamate/env/public";
+import type { AppRouter } from "@datamate/rpc";
+import { createORPCClient } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
+import type { RouterClient } from "@orpc/server";
+
+const link = new RPCLink({
+	url: `${publicConfig.urls.api}/rpc`,
+});
+
+export const publicRPCClient = createORPCClient(
+	link
+) as RouterClient<AppRouter>;

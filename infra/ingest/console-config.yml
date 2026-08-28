@@ -1,0 +1,9 @@
+kafka:
+  sasl:
+    enabled: true
+    mechanism: SCRAM-SHA-256
+  tls:
+    enabled: false
+redpanda:
+  adminApi:
+    enabled: false

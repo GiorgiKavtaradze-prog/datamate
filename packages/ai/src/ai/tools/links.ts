@@ -1,0 +1,480 @@
+import { tool } from "ai";
+import dayjs from "dayjs";
+import { z } from "zod";
+import {
+	DEEP_LINK_APP_IDS,
+	isDeepLinkTarget,
+} from "@datamate/shared/constants/deep-link-apps";
+import { LINK_SLUG_REGEX } from "@datamate/shared/constants/links";
+import { httpUrlSchema } from "@datamate/validation";
+import { getCachedWebsite } from "../../lib/website-utils";
+import {
+	LinkFolderSelectorSchema,
+	getLinkSummary,
+	hasLinkFolderSelector,
+	listLinkFolders,
+	listLinks,
+	parseLinkRow,
+	resolveLinkFolder,
+	resolveLinkFolderFromList,
+	searchLinks,
+	summarizeLink,
+	summarizeLinkFolder,
+	summarizeLinkFoldersWithUsage,
+} from "./link-catalog";
+import { callRPCProcedure, createToolLogger, getAppContext } from "./utils";
+
+const logger = createToolLogger("Links Tools");
+
+async function getOrganizationIdFromWebsite(
+	websiteId: string
+): Promise<string> {
+	const website = await getCachedWebsite(websiteId);
+	if (!website) {
+		throw new Error("Website not found");
+	}
+	if (!website.organizationId) {
+		throw new Error(
+			"This website is not associated with an organization. Links require an organization."
+		);
+	}
+	return website.organizationId;
+}
+
+export function createLinksTools() {
+	const listLinkFoldersTool = tool({
+		description:
+			"List existing short-link folders for the website organization, including how many links are filed in each folder. Use this before choosing a folder for link creation or updates.",
+		inputSchema: z.object({ websiteId: z.string() }),
+		execute: async ({ websiteId }, options) => {
+			const context = getAppContext(options);
+			try {
+				const organizationId = await getOrganizationIdFromWebsite(websiteId);
+				const [folders, summary] = await Promise.all([
+					listLinkFolders(context, organizationId),
+					getLinkSummary(context, organizationId),
+				]);
+
+				return {
+					folders: summarizeLinkFoldersWithUsage(folders),
+					count: folders.length,
+					unfiledCount: summary.unfiledTotal,
+					hint:
+						folders.length === 0
+							? "No link folders exist yet. Leave links unfiled unless the user creates a folder in Datamate."
+							: "Use folderId or folderSlug from this list. Do not invent new folders from the agent.",
+				};
+			} catch (error) {
+				logger.error("Failed to list link folders", { websiteId, error });
+				throw error instanceof Error
+					? error
+					: new Error("Failed to retrieve link folders. Please try again.");
+			}
+		},
+	});
+
+	const listLinksTool = tool({
+		description:
+			"List the newest short links and existing folders for the website org. Set search to find a specific link across the full catalog.",
+		inputSchema: z.object({
+			search: z.string().trim().min(1).max(255).optional(),
+			websiteId: z.string(),
+		}),
+		execute: async ({ search, websiteId }, options) => {
+			const context = getAppContext(options);
+			try {
+				const organizationId = await getOrganizationIdFromWebsite(websiteId);
+				const [page, folders, summary] = await Promise.all([
+					search
+						? searchLinks(context, organizationId, search)
+						: listLinks(context, organizationId),
+					listLinkFolders(context, organizationId),
+					search
+						? Promise.resolve(null)
+						: getLinkSummary(context, organizationId),
+				]);
+				const count = summary?.total ?? page.items.length;
+				return {
+					links: page.items.map((link) => summarizeLink(link, folders)),
+					count,
+					folders: summarizeLinkFoldersWithUsage(folders, page.items),
+					unfiledCount:
+						summary?.unfiledTotal ??
+						page.items.filter((link) => !link.folderId).length,
+					hint:
+						page.hasMore || count > page.items.length
+							? search
+								? `Showing the ${page.items.length} newest matching links; more matches exist.`
+								: `Showing the ${page.items.length} newest of ${count} links.`
+							: undefined,
+				};
+			} catch (error) {
+				logger.error("Failed to list links", { websiteId, error });
+				throw error instanceof Error
+					? error
+					: new Error("Failed to retrieve links. Please try again.");
+			}
+		},
+	});
+
+	const createLinkTool = tool({
+		description:
+			"Create a short link. slug auto-generated if omitted. expiresAt is ISO date.",
+		inputSchema: z
+			.object({
+				websiteId: z.string(),
+				name: z.string().min(1).max(255),
+				targetUrl: httpUrlSchema,
+				slug: z.string().min(3).max(50).regex(LINK_SLUG_REGEX).optional(),
+				expiresAt: z.string().optional(),
+				expiredRedirectUrl: httpUrlSchema.optional(),
+				ogTitle: z.string().max(200).optional(),
+				ogDescription: z.string().max(500).optional(),
+				ogImageUrl: httpUrlSchema.optional(),
+				externalId: z.string().max(255).optional(),
+				...LinkFolderSelectorSchema.shape,
+				deepLinkApp: z
+					.enum(DEEP_LINK_APP_IDS)
+					.optional()
+					.describe(
+						"App ID for deep linking (instagram, tiktok, youtube, x, spotify, linkedin, facebook, whatsapp, telegram). On mobile, opens the native app."
+					),
+				confirmed: z.boolean().describe("false=preview, true=apply"),
+			})
+			.superRefine(({ deepLinkApp, targetUrl }, context) => {
+				if (deepLinkApp && !isDeepLinkTarget(deepLinkApp, targetUrl)) {
+					context.addIssue({
+						code: "custom",
+						message:
+							"Deep link URLs must use HTTPS and match the selected app.",
+						path: ["targetUrl"],
+					});
+				}
+			}),
+		execute: async (
+			{
+				websiteId,
+				name,
+				targetUrl,
+				slug,
+				expiresAt,
+				expiredRedirectUrl,
+				ogTitle,
+				ogDescription,
+				ogImageUrl,
+				externalId,
+				folderId,
+				folderSlug,
+				deepLinkApp,
+				confirmed,
+			},
+			options
+		) => {
+			const context = getAppContext(options);
+			try {
+				const organizationId = await getOrganizationIdFromWebsite(websiteId);
+				const folderSelection = await resolveLinkFolder(
+					context,
+					organizationId,
+					{ folderId, folderSlug }
+				);
+				if (!folderSelection.ok) {
+					return {
+						success: false,
+						message: folderSelection.message,
+						folders: summarizeLinkFoldersWithUsage(folderSelection.folders, []),
+					};
+				}
+
+				if (!confirmed) {
+					return {
+						preview: true,
+						message:
+							"Please review the link details below and confirm if you want to create it:",
+						link: {
+							name,
+							targetUrl,
+							slug: slug ?? "(auto-generated)",
+							expiresAt: expiresAt ?? "Never",
+							expiredRedirectUrl: expiredRedirectUrl ?? "None",
+							ogTitle: ogTitle ?? "None",
+							ogDescription: ogDescription ?? "None",
+							ogImageUrl: ogImageUrl ?? "None",
+							externalId: externalId ?? "None",
+							folder: folderSelection.folder
+								? summarizeLinkFolder(folderSelection.folder)
+								: "Unfiled",
+						},
+						availableFolders: folderSelection.folders.map(summarizeLinkFolder),
+						confirmationRequired: true,
+						instruction:
+							"To create this link, the user must explicitly confirm (e.g., 'yes', 'create it', 'confirm'). Only then call this tool again with confirmed=true.",
+					};
+				}
+
+				const newLink = parseLinkRow(
+					await callRPCProcedure(
+						"links",
+						"create",
+						{
+							organizationId,
+							name,
+							targetUrl,
+							slug,
+							folderId: folderSelection.folderId ?? null,
+							expiresAt: expiresAt ? new Date(expiresAt) : null,
+							expiredRedirectUrl: expiredRedirectUrl ?? null,
+							ogTitle: ogTitle ?? null,
+							ogDescription: ogDescription ?? null,
+							ogImageUrl: ogImageUrl ?? null,
+							externalId: externalId ?? null,
+							deepLinkApp: deepLinkApp ?? null,
+						},
+						context
+					)
+				);
+
+				return {
+					success: true,
+					message: `Link "${name}" created successfully!`,
+					link: summarizeLink(newLink, folderSelection.folders),
+					shortUrl: `/${newLink.slug}`,
+				};
+			} catch (error) {
+				logger.error("Failed to create link", { websiteId, name, error });
+				throw error instanceof Error
+					? error
+					: new Error("Failed to create link. Please try again.");
+			}
+		},
+	});
+
+	const updateLinkTool = tool({
+		description: "Update a short link. Pass null to nullable fields to clear.",
+		inputSchema: z.object({
+			id: z.string(),
+			websiteId: z.string(),
+			name: z.string().min(1).max(255).optional(),
+			targetUrl: httpUrlSchema.optional(),
+			slug: z.string().min(3).max(50).regex(LINK_SLUG_REGEX).optional(),
+			expiresAt: z.string().datetime().nullable().optional(),
+			expiredRedirectUrl: httpUrlSchema.nullable().optional(),
+			ogTitle: z.string().max(200).nullable().optional(),
+			ogDescription: z.string().max(500).nullable().optional(),
+			ogImageUrl: httpUrlSchema.nullable().optional(),
+			externalId: z.string().max(255).nullable().optional(),
+			...LinkFolderSelectorSchema.shape,
+			deepLinkApp: z.enum(DEEP_LINK_APP_IDS).nullable().optional(),
+			confirmed: z.boolean().describe("false=preview, true=apply"),
+		}),
+		execute: async (
+			{ id, websiteId, confirmed, folderId, folderSlug, ...updates },
+			options
+		) => {
+			const context = getAppContext(options);
+			try {
+				const organizationId = await getOrganizationIdFromWebsite(websiteId);
+				const [currentLink, folders] = await Promise.all([
+					callRPCProcedure(
+						"links",
+						"get",
+						{ id, organizationId },
+						context
+					).then(parseLinkRow),
+					listLinkFolders(context, organizationId),
+				]);
+				const folderSelection = hasLinkFolderSelector({
+					folderId,
+					folderSlug,
+				})
+					? resolveLinkFolderFromList(folders, {
+							folderId,
+							folderSlug,
+						})
+					: { folder: null, folderId: undefined, folders, ok: true as const };
+				if (!folderSelection.ok) {
+					return {
+						success: false,
+						message: folderSelection.message,
+						folders: summarizeLinkFoldersWithUsage(folderSelection.folders, []),
+					};
+				}
+
+				const currentFolder =
+					folders.find((folder) => folder.id === currentLink.folderId) ?? null;
+				const effectiveDeepLinkApp =
+					updates.deepLinkApp === undefined
+						? currentLink.deepLinkApp
+						: updates.deepLinkApp;
+				const effectiveTargetUrl = updates.targetUrl ?? currentLink.targetUrl;
+				if (
+					effectiveDeepLinkApp &&
+					!isDeepLinkTarget(effectiveDeepLinkApp, effectiveTargetUrl)
+				) {
+					return {
+						success: false,
+						message:
+							"Deep link URLs must use HTTPS and match the selected app.",
+					};
+				}
+
+				const changes: string[] = [];
+				if (updates.name && updates.name !== currentLink.name) {
+					changes.push(`Name: "${currentLink.name}" → "${updates.name}"`);
+				}
+				if (updates.targetUrl && updates.targetUrl !== currentLink.targetUrl) {
+					changes.push(
+						`Target: ${currentLink.targetUrl} → ${updates.targetUrl}`
+					);
+				}
+				if (updates.slug && updates.slug !== currentLink.slug) {
+					changes.push(`Slug: /${currentLink.slug} → /${updates.slug}`);
+				}
+				if (
+					updates.deepLinkApp !== undefined &&
+					updates.deepLinkApp !== currentLink.deepLinkApp
+				) {
+					changes.push(
+						`Deep link app: ${currentLink.deepLinkApp ?? "None"} → ${updates.deepLinkApp ?? "None"}`
+					);
+				}
+				if (updates.expiresAt !== undefined) {
+					const oldExpires = currentLink.expiresAt
+						? dayjs(currentLink.expiresAt).format("MMM D, YYYY")
+						: "Never";
+					const newExpires = updates.expiresAt
+						? dayjs(updates.expiresAt).format("MMM D, YYYY")
+						: "Never";
+					if (oldExpires !== newExpires) {
+						changes.push(`Expires: ${oldExpires} → ${newExpires}`);
+					}
+				}
+				if (
+					updates.externalId !== undefined &&
+					updates.externalId !== currentLink.externalId
+				) {
+					changes.push(
+						`External ID: ${currentLink.externalId ?? "None"} → ${updates.externalId ?? "None"}`
+					);
+				}
+				if (
+					folderSelection.folderId !== undefined &&
+					folderSelection.folderId !== currentLink.folderId
+				) {
+					changes.push(
+						`Folder: ${currentFolder?.name ?? "Unfiled"} → ${folderSelection.folder?.name ?? "Unfiled"}`
+					);
+				}
+
+				if (!confirmed) {
+					return {
+						preview: true,
+						message: `Please review the changes to "${currentLink.name}":`,
+						currentLink: {
+							name: currentLink.name,
+							slug: currentLink.slug,
+							targetUrl: currentLink.targetUrl,
+							deepLinkApp: currentLink.deepLinkApp ?? null,
+							folder: currentFolder
+								? summarizeLinkFolder(currentFolder)
+								: "Unfiled",
+						},
+						changes: changes.length > 0 ? changes : ["No changes detected"],
+						availableFolders: folders.map(summarizeLinkFolder),
+						confirmationRequired: true,
+						instruction:
+							"To apply these changes, the user must explicitly confirm. Only then call this tool again with confirmed=true.",
+					};
+				}
+
+				const cleanUpdates = Object.fromEntries(
+					Object.entries(updates).filter(([, value]) => value !== undefined)
+				);
+				if (folderSelection.folderId !== undefined) {
+					cleanUpdates.folderId = folderSelection.folderId;
+				}
+
+				const updatedLink = parseLinkRow(
+					await callRPCProcedure(
+						"links",
+						"update",
+						{ id, ...cleanUpdates },
+						context
+					)
+				);
+
+				return {
+					success: true,
+					message: `Link "${updatedLink.name}" updated successfully!`,
+					link: summarizeLink(updatedLink, folderSelection.folders),
+					changes,
+				};
+			} catch (error) {
+				logger.error("Failed to update link", { id, websiteId, error });
+				throw error instanceof Error
+					? error
+					: new Error("Failed to update link. Please try again.");
+			}
+		},
+	});
+
+	const deleteLinkTool = tool({
+		description: "Delete a short link. Cannot be undone.",
+		inputSchema: z.object({
+			id: z.string(),
+			websiteId: z.string(),
+			confirmed: z.boolean().describe("false=preview, true=delete"),
+		}),
+		execute: async ({ id, websiteId, confirmed }, options) => {
+			const context = getAppContext(options);
+			try {
+				const organizationId = await getOrganizationIdFromWebsite(websiteId);
+
+				const link = parseLinkRow(
+					await callRPCProcedure(
+						"links",
+						"get",
+						{ id, organizationId },
+						context
+					)
+				);
+
+				if (!confirmed) {
+					return {
+						preview: true,
+						message:
+							"Are you sure you want to delete this link? This cannot be undone.",
+						link: {
+							name: link.name,
+							slug: link.slug,
+							targetUrl: link.targetUrl,
+						},
+						confirmationRequired: true,
+						instruction:
+							"To delete this link, the user must explicitly confirm (e.g., 'yes, delete it'). Only then call this tool again with confirmed=true.",
+					};
+				}
+
+				await callRPCProcedure("links", "delete", { id }, context);
+
+				return {
+					success: true,
+					message: `Link "${link.name}" (/${link.slug}) has been deleted.`,
+				};
+			} catch (error) {
+				logger.error("Failed to delete link", { id, websiteId, error });
+				throw error instanceof Error
+					? error
+					: new Error("Failed to delete link. Please try again.");
+			}
+		},
+	});
+
+	return {
+		list_link_folders: listLinkFoldersTool,
+		list_links: listLinksTool,
+		create_link: createLinkTool,
+		update_link: updateLinkTool,
+		delete_link: deleteLinkTool,
+	} as const;
+}

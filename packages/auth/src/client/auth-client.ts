@@ -1,0 +1,43 @@
+import { ssoClient } from "@better-auth/sso/client";
+import {
+	customSessionClient,
+	emailOTPClient,
+	genericOAuthClient,
+	lastLoginMethodClient,
+	magicLinkClient,
+	multiSessionClient,
+	organizationClient,
+	twoFactorClient,
+} from "better-auth/client/plugins";
+import { createAuthClient } from "better-auth/react";
+import type { auth } from "../auth";
+import { ac, admin, member, owner } from "../permissions";
+
+export const authClient = createAuthClient({
+	plugins: [
+		customSessionClient<typeof auth>(),
+		twoFactorClient(),
+		multiSessionClient(),
+		genericOAuthClient(),
+		emailOTPClient(),
+		magicLinkClient(),
+		lastLoginMethodClient(),
+		ssoClient(),
+		organizationClient({
+			ac,
+			roles: {
+				owner,
+				admin,
+				member,
+			},
+		}),
+	],
+});
+
+const signIn = authClient.signIn;
+const signUp = authClient.signUp;
+const signOut = authClient.signOut;
+const useSession = authClient.useSession;
+const getSession = authClient.getSession;
+
+export { getSession, signIn, signOut, signUp, useSession };

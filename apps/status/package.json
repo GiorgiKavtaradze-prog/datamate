@@ -1,0 +1,30 @@
+{
+  "name": "@datamate/status",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "dotenv -e ../../.env -- next dev -p 3002",
+    "build": "bun run --bun next build",
+    "start": "dotenv -e ../../.env -- next start -p 3002",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@datamate/env": "workspace:*",
+    "@datamate/rpc": "workspace:*",
+    "@datamate/shared": "workspace:*",
+    "@datamate/ui": "workspace:*",
+    "@orpc/client": "^1.14.0",
+    "next": "catalog:",
+    "next-themes": "^0.4.6",
+    "react": "catalog:",
+    "react-dom": "catalog:"
+  },
+  "devDependencies": {
+    "@orpc/server": "^1.14.0",
+    "@tailwindcss/postcss": "^4.2.4",
+    "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
+    "tailwindcss": "^4.1.8",
+    "typescript": "catalog:"
+  }
+}

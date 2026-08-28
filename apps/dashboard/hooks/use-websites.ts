@@ -1,0 +1,232 @@
+"use client";
+
+import type { Website } from "@datamate/db/schema";
+import type { ProcessedMiniChartData } from "@/types/website";
+
+import type { QueryKey } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { usePathname } from "next/navigation";
+import { orpc } from "@/lib/orpc";
+
+export type { Website } from "@datamate/db/schema";
+
+export interface WebsitesListData {
+	activeUsers: Record<string, number>;
+	chartData: Record<string, ProcessedMiniChartData>;
+	websites: Website[];
+}
+
+export const getWebsiteByIdKey = (id: string): QueryKey =>
+	orpc.websites.getById.queryKey({ input: { id } });
+
+export const getWebsitesListKey = (): QueryKey =>
+	orpc.websites.listWithCharts.queryKey({
+		input: {},
+	});
+
+const EMPTY_WEBSITES: Website[] = [];
+
+export const updateWebsiteInList = (
+	old: WebsitesListData | undefined,
+	updatedWebsite: Website
+): WebsitesListData | undefined => {
+	if (!old) {
+		return old;
+	}
+	return {
+		...old,
+		websites: old.websites.map((website) =>
+			website.id === updatedWebsite.id ? updatedWebsite : website
+		),
+	};
+};
+
+const addWebsiteToList = (
+	old: WebsitesListData | undefined,
+	newWebsite: Website
+): WebsitesListData => {
+	if (!old) {
+		return { websites: [newWebsite], chartData: {}, activeUsers: {} };
+	}
+	if (old.websites.some((w) => w.id === newWebsite.id)) {
+		return old;
+	}
+	return {
+		websites: [...old.websites, newWebsite],
+		chartData: {
+			...old.chartData,
+			[newWebsite.id]: {
+				data: [],
+				totalViews: 0,
+				hasAnyData: false,
+				hasHistoricalData: false,
+				trend: null,
+			},
+		},
+		activeUsers: {
+			...old.activeUsers,
+			[newWebsite.id]: 0,
+		},
+	};
+};
+
+const removeWebsiteFromList = (
+	old: WebsitesListData | undefined,
+	websiteId: string
+): WebsitesListData | undefined => {
+	if (!old) {
+		return old;
+	}
+	return {
+		...old,
+		websites: old.websites.filter((w) => w.id !== websiteId),
+		chartData: Object.fromEntries(
+			Object.entries(old.chartData).filter(([key]) => key !== websiteId)
+		),
+		activeUsers: Object.fromEntries(
+			Object.entries(old.activeUsers).filter(([key]) => key !== websiteId)
+		),
+	};
+};
+
+export function useWebsites(options?: { enabled?: boolean }) {
+	const query = useQuery({
+		...orpc.websites.listWithCharts.queryOptions({
+			input: {},
+		}),
+		enabled: options?.enabled !== false,
+	});
+
+	return {
+		websites: query.data?.websites ?? EMPTY_WEBSITES,
+		chartData: query.data?.chartData,
+		activeUsers: query.data?.activeUsers,
+		isLoading: query.isLoading,
+		isFetching: query.isFetching,
+		isError: query.isError,
+		refetch: query.refetch,
+	};
+}
+
+export function useWebsitesLight(options?: { enabled?: boolean }) {
+	const query = useQuery({
+		...orpc.websites.list.queryOptions({
+			input: {},
+		}),
+		enabled: options?.enabled !== false,
+	});
+
+	return {
+		websites: query.data ?? EMPTY_WEBSITES,
+		isLoading: query.isLoading,
+		isFetching: query.isFetching,
+		isError: query.isError,
+		refetch: query.refetch,
+	};
+}
+
+export function useWebsite(id: string) {
+	const pathname = usePathname();
+	const usePublicMetadata =
+		pathname?.startsWith("/demo/") || pathname?.startsWith("/public/");
+
+	const privateQuery = useQuery({
+		...orpc.websites.getById.queryOptions({
+			input: { id },
+		}),
+		enabled: !!id && !usePublicMetadata,
+	});
+
+	const publicQuery = useQuery({
+		...orpc.websites.getPublicSummary.queryOptions({
+			input: { id },
+		}),
+		enabled: !!id && usePublicMetadata,
+	});
+
+	return usePublicMetadata
+		? (publicQuery as typeof privateQuery)
+		: privateQuery;
+}
+
+export function usePublicWebsiteSummary(id: string) {
+	return useQuery({
+		...orpc.websites.getPublicSummary.queryOptions({
+			input: { id },
+		}),
+		enabled: !!id,
+	});
+}
+
+export function useCreateWebsite() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		...orpc.websites.create.mutationOptions(),
+		meta: { suppressGlobalErrorToast: true },
+		onMutate: async () => {
+			await queryClient.cancelQueries({ queryKey: getWebsitesListKey() });
+		},
+		onSuccess: (data) => {
+			const newWebsite = data as Website;
+			const listKey = getWebsitesListKey();
+			queryClient.setQueryData<WebsitesListData>(listKey, (old) =>
+				addWebsiteToList(old, newWebsite)
+			);
+		},
+	});
+}
+
+export const updateWebsiteCache = (
+	queryClient: ReturnType<typeof useQueryClient>,
+	updatedWebsite: Website
+) => {
+	const getByIdKey = getWebsiteByIdKey(updatedWebsite.id);
+	const listKey = getWebsitesListKey();
+
+	queryClient.setQueryData<WebsitesListData>(listKey, (old) =>
+		updateWebsiteInList(old, updatedWebsite)
+	);
+	queryClient.setQueryData(getByIdKey, updatedWebsite);
+};
+
+export function useUpdateWebsite() {
+	const queryClient = useQueryClient();
+	return useMutation({
+		...orpc.websites.update.mutationOptions(),
+		meta: { suppressGlobalErrorToast: true },
+		onSuccess: (data) => {
+			const updatedWebsite = data as Website;
+			updateWebsiteCache(queryClient, updatedWebsite);
+		},
+	});
+}
+
+export function useDeleteWebsite() {
+	const queryClient = useQueryClient();
+
+	return useMutation({
+		...orpc.websites.delete.mutationOptions(),
+		onMutate: async ({ id }) => {
+			const listKey = getWebsitesListKey();
+
+			await queryClient.cancelQueries({ queryKey: listKey });
+			const previousData = queryClient.getQueryData<WebsitesListData>(listKey);
+
+			queryClient.setQueryData<WebsitesListData>(listKey, (old) =>
+				removeWebsiteFromList(old, id)
+			);
+
+			return { previousData, listKey };
+		},
+		onError: (_error, _variables, context) => {
+			if (context?.previousData && context.listKey) {
+				queryClient.setQueryData(context.listKey, context.previousData);
+			}
+		},
+		onSuccess: (_data, { id }) => {
+			const getByIdKey = getWebsiteByIdKey(id);
+			queryClient.setQueryData(getByIdKey, undefined);
+		},
+	});
+}

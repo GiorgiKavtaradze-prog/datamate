@@ -1,0 +1,273 @@
+---
+title: Squarespace
+description: Add privacy-first analytics to your Squarespace website
+---
+
+import { Steps, Step } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { CodeBlock } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+Add Datamate's privacy-first analytics to your Squarespace website using Squarespace's Code Injection feature.
+
+## How to Add Datamate to Squarespace
+
+<Steps>
+  <Step title="Get Your Tracking Script">
+    Get your Datamate tracking script from your [Datamate dashboard](https://app.datamate.cc). It will look like this:
+
+    <CodeBlock
+      language="html"
+      code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  async
+></script>`}
+    />
+
+    Replace `YOUR_CLIENT_ID` with your actual Client ID from your Datamate dashboard.
+  </Step>
+
+  <Step title="Go to Squarespace Settings">
+    Log in to your Squarespace account and select the website you want to track.
+
+    From the main dashboard (Home Menu), navigate to **Settings**.
+  </Step>
+
+  <Step title="Access Code Injection">
+    In the Settings panel, find and click on:
+
+    - **Website** (under the "GENERAL" section)
+    - Then, click on **Code Injection** (under the "ADVANCED" or "DEVELOPER" section, depending on your Squarespace version)
+
+    <Callout type="info">
+      The Code Injection feature is available on Squarespace Business and Commerce plans. It may not be available on Personal plans.
+    </Callout>
+  </Step>
+
+  <Step title="Paste Your Tracking Script">
+    In the Code Injection settings, you'll see several fields (Header, Footer, Lock Page, Order Confirmation Page).
+
+    For sitewide tracking, paste your Datamate tracking script into the **Footer** text area. This ensures the script loads after your page content, which is better for perceived page load performance.
+
+    Alternatively, you can place it in the **Header**, which might track users who leave before the page fully loads, but could slightly impact initial page load speed. For most analytics purposes, the Footer is recommended.
+  </Step>
+
+  <Step title="Save Changes">
+    After pasting the script, click the **Save** button at the top of the Code Injection panel.
+  </Step>
+
+  <Step title="Verify Integration">
+    Once you've saved the changes, Datamate should start tracking visitors on your Squarespace site.
+
+    - Open your Squarespace website in a new browser tab or incognito window
+    - Navigate through a few pages
+    - Check your [Datamate dashboard](https://app.datamate.cc) for incoming data. It might take a few minutes for the first events to appear
+  </Step>
+</Steps>
+
+## Configuration Options
+
+Enable additional tracking features by adding data attributes to your script tag:
+
+<CodeBlock
+  language="html"
+  code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-track-attributes
+  data-track-outgoing-links
+  data-track-interactions
+  data-track-web-vitals
+  data-track-errors
+  async
+></script>`}
+/>
+
+## Custom Event Tracking in Squarespace
+
+Track custom events by adding JavaScript code through Code Injection or using Squarespace's built-in code blocks.
+
+### Using Data Attributes
+
+Enable automatic tracking with data attributes:
+
+<CodeBlock
+  language="html"
+  code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-track-attributes
+  async
+></script>`}
+/>
+
+Then add `data-track` attributes directly to elements in your Squarespace content:
+
+<CodeBlock
+  language="html"
+  code={`<!-- Button with automatic tracking -->
+<button data-track="cta_click" data-button-type="primary">
+  Get Started
+</button>
+
+<!-- Link with tracking -->
+<a href="/pricing" data-track="pricing_link_click" data-link-location="header">
+  View Pricing
+</a>`}
+/>
+
+### Tracking Button Clicks
+
+Add custom JavaScript to track specific button interactions:
+
+<CodeBlock
+  language="html"
+  code={`<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+  var button = document.getElementById('your-button-id');
+  if (button && window.datamate) {
+    button.addEventListener('click', function() {
+      window.datamate.track('button_click', {
+        button_id: 'your-button-id',
+        button_text: button.textContent || button.innerText,
+        page_path: window.location.pathname
+      });
+    });
+  }
+});
+</script>`}
+/>
+
+### Tracking Form Submissions
+
+Track form submissions from Squarespace forms:
+
+<CodeBlock
+  language="html"
+  code={`<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+  var forms = document.querySelectorAll('form[data-form-type]');
+  forms.forEach(function(form) {
+    if (window.datamate) {
+      form.addEventListener('submit', function() {
+        window.datamate.track('form_submit', {
+          form_type: form.getAttribute('data-form-type') || 'contact',
+          page_path: window.location.pathname
+        });
+      });
+    }
+  });
+});
+</script>`}
+/>
+
+## Common Use Cases
+
+### E-commerce Tracking
+
+Track product views and purchases on Squarespace Commerce sites:
+
+<CodeBlock
+  language="javascript"
+  code={`// Track product view
+if (window.datamate) {
+  window.datamate.track('product_view', {
+    product_id: 'product-123',
+    product_name: 'Example Product',
+    price: 29.99
+  });
+}
+
+// Track add to cart
+window.datamate.track('add_to_cart', {
+  product_id: 'product-123',
+  quantity: 1
+});`}
+/>
+
+### Newsletter Signups
+
+Track newsletter subscriptions:
+
+<CodeBlock
+  language="javascript"
+  code={`document.addEventListener('DOMContentLoaded', function() {
+  var newsletterForm = document.querySelector('form[data-form-type="newsletter"]');
+  if (newsletterForm && window.datamate) {
+    newsletterForm.addEventListener('submit', function() {
+      window.datamate.track('newsletter_signup', {
+        form_location: 'footer',
+        page_path: window.location.pathname
+      });
+    });
+  }
+});`}
+/>
+
+### Blog Engagement
+
+Track blog post views and reading engagement:
+
+<CodeBlock
+  language="javascript"
+  code={`document.addEventListener('DOMContentLoaded', function() {
+  if (window.datamate && window.location.pathname.includes('/blog/')) {
+    window.datamate.track('blog_post_view', {
+      post_title: document.title,
+      page_path: window.location.pathname
+    });
+  }
+});`}
+/>
+
+## Troubleshooting
+
+### Script Not Loading
+
+- Verify the script is in the **Footer** section of Code Injection
+- Check browser console for errors
+- Ensure your Client ID is correct
+- Confirm you have a Squarespace Business or Commerce plan
+- Clear browser cache and reload
+
+### Events Not Tracking
+
+- Confirm `window.datamate` exists before calling tracking methods
+- Check that elements exist before attaching event listeners
+- Use `DOMContentLoaded` to ensure DOM is ready
+- Verify events appear in your Datamate dashboard after 2-3 minutes
+- Check browser dev tools Network tab to confirm requests are being sent
+
+### Squarespace-Specific Issues
+
+- Some Squarespace templates may load content dynamically
+- Use `DOMContentLoaded` or `setTimeout` for timing-sensitive tracking
+- Test in different browsers and devices
+- Ensure Code Injection is enabled for your plan
+
+### Verification Steps
+
+After installation, verify tracking is working:
+
+1. Visit your Squarespace site and navigate through a few pages
+2. Wait 2-3 minutes for data to process
+3. Check your [Datamate dashboard](https://app.datamate.cc) for page views
+4. Use browser dev tools Network tab to confirm requests are being sent
+5. Test in incognito mode to avoid cache issues
+
+## Related Integrations
+
+<Cards>
+  <Card title="WordPress" href="/docs/Integrations/wordpress">
+    Plugin or manual setup for WordPress sites.
+  </Card>
+  <Card title="Wix" href="/docs/Integrations/wix">
+    Simple setup for Wix websites.
+  </Card>
+  <Card title="Webflow" href="/docs/Integrations/webflow">
+    Visual builder integration for Webflow sites.
+  </Card>
+</Cards>
+
+Need help with your Squarespace integration? Contact us at [support@datamate.cc](mailto:support@datamate.cc).

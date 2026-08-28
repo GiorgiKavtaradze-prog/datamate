@@ -1,0 +1,128 @@
+import type { BlockedTrafficInsert } from "@datamate/db/clickhouse/tables";
+import {
+	queueBlockedTrafficAlert,
+	type BlockedTrafficAlertContext,
+} from "@lib/blocked-traffic-alerts";
+import { runFork, send } from "@lib/producer";
+import { captureError } from "@lib/tracing";
+import { extractIpFromRequest, getGeo } from "@utils/ip-geo";
+import { parseUserAgent } from "@utils/user-agent";
+import {
+	sanitizeString,
+	sanitizeUrl,
+	VALIDATION_LIMITS,
+} from "@utils/validation";
+import { randomUUIDv7 } from "bun";
+
+async function _logBlockedTrafficAsync(
+	request: Request,
+	body: any,
+	_query: any,
+	blockReason: string,
+	blockCategory: string,
+	botName?: string,
+	clientId?: string,
+	context?: BlockedTrafficAlertContext
+): Promise<void> {
+	try {
+		const ip = extractIpFromRequest(request);
+		const userAgent =
+			sanitizeString(
+				request.headers.get("user-agent"),
+				VALIDATION_LIMITS.STRING_MAX_LENGTH
+			) || "";
+
+		const [geo, ua] = await Promise.all([
+			getGeo(ip, request),
+			parseUserAgent(userAgent),
+		]);
+		const now = Date.now();
+		const { anonymizedIP, country, region } = geo;
+		const { browserName, browserVersion, osName, osVersion, deviceType } = ua;
+
+		const blockedEvent: BlockedTrafficInsert = {
+			id: randomUUIDv7(),
+			client_id: clientId || "",
+			timestamp: now,
+
+			path: sanitizeUrl(body?.path, VALIDATION_LIMITS.STRING_MAX_LENGTH),
+			url: sanitizeUrl(
+				body?.url || body?.href,
+				VALIDATION_LIMITS.STRING_MAX_LENGTH
+			),
+			referrer: sanitizeUrl(
+				body?.referrer || request.headers.get("referer"),
+				VALIDATION_LIMITS.STRING_MAX_LENGTH
+			),
+			method: "POST",
+			origin: sanitizeString(
+				request.headers.get("origin"),
+				VALIDATION_LIMITS.STRING_MAX_LENGTH
+			),
+
+			ip: anonymizedIP || ip,
+			user_agent: userAgent || "",
+			accept_header: sanitizeString(
+				request.headers.get("accept"),
+				VALIDATION_LIMITS.STRING_MAX_LENGTH
+			),
+			language: sanitizeString(
+				request.headers.get("accept-language"),
+				VALIDATION_LIMITS.STRING_MAX_LENGTH
+			),
+
+			block_reason: blockReason,
+			block_category: blockCategory,
+			bot_name: botName || "",
+
+			country: country || "",
+			region: region || "",
+			browser_name: browserName || "",
+			browser_version: browserVersion || "",
+			os_name: osName || "",
+			os_version: osVersion || "",
+			device_type: deviceType || "",
+
+			payload_size:
+				blockReason === "payload_too_large"
+					? JSON.stringify(body || {}).length
+					: undefined,
+
+			created_at: now,
+		};
+
+		// Security telemetry must never delay the rejection path; producer
+		// failures are captured by the shared fire-and-forget send path.
+		runFork(send("analytics-blocked-traffic", blockedEvent));
+		queueBlockedTrafficAlert(blockedEvent, context);
+	} catch (error) {
+		captureError(error, { message: "Failed to log blocked traffic" });
+	}
+}
+
+/**
+ * Log blocked traffic for security and monitoring purposes (fire-and-forget)
+ */
+export function logBlockedTraffic(
+	request: Request,
+	body: any,
+	query: any,
+	blockReason: string,
+	blockCategory: string,
+	botName?: string,
+	clientId?: string,
+	context?: BlockedTrafficAlertContext
+): void {
+	_logBlockedTrafficAsync(
+		request,
+		body,
+		query,
+		blockReason,
+		blockCategory,
+		botName,
+		clientId,
+		context
+	).catch((error) => {
+		captureError(error, { message: "Failed to log blocked traffic" });
+	});
+}

@@ -1,0 +1,11 @@
+---
+description: After mistakes or missing-context issues, update the internal datamate agent skill so they are not repeated
+globs:
+alwaysApply: true
+---
+
+When you discover that a problem could have been avoided with more context (wrong surface, package, or assumption), or when big papa iza corrects something you did wrong or tells you to fix your own mistake, update the internal monorepo skill at `.agents/skills/datamate/SKILL.md` and/or `.agents/skills/datamate/references/codebase-map.md` in the same session when practical.
+
+Add the smallest useful addition: a bullet under the right section, a new search hint, a routing clarification, or a one-line pitfall—not a long essay. Goal: the next agent turn does not repeat the same error.
+
+If the lesson applies to external SDK/API users instead, add it to `.agents/skills/datamate-integration/` instead.

@@ -1,0 +1,176 @@
+---
+title: Next.js
+description: Add privacy-first analytics to your Next.js application
+---
+
+import { Card, Cards } from "@/components/docs";
+
+Datamate works with both the App Router and Pages Router. Add it once near the root of your app; page views and client-side route changes are tracked automatically.
+
+## Install
+
+```bash
+bun add @datamate/sdk
+```
+
+You can also install with npm or yarn:
+
+```bash
+npm install @datamate/sdk
+yarn add @datamate/sdk
+```
+
+## App Router
+
+Add `<Datamate />` to `app/layout.tsx`:
+
+```tsx
+import { Datamate } from "@datamate/sdk/react";
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="en">
+      <body>
+        <Datamate
+          clientId={process.env.NEXT_PUBLIC_DATAMATE_CLIENT_ID!}
+		  trackWebVitals
+          trackErrors
+        />
+        {children}
+      </body>
+    </html>
+  );
+}
+```
+
+Add your Client ID to `.env.local`:
+
+```bash
+NEXT_PUBLIC_DATAMATE_CLIENT_ID=your-client-id
+```
+
+## Pages Router
+
+Add `<Datamate />` to `pages/_app.tsx`:
+
+```tsx
+import { Datamate } from "@datamate/sdk/react";
+import type { AppProps } from "next/app";
+
+export default function MyApp({ Component, pageProps }: AppProps) {
+  return (
+    <>
+      <Datamate
+        clientId={process.env.NEXT_PUBLIC_DATAMATE_CLIENT_ID!}
+		trackWebVitals
+        trackErrors
+      />
+      <Component {...pageProps} />
+    </>
+  );
+}
+```
+
+Datamate sends the first page view when it loads and listens for route changes. Do not add your own `router.events` or `usePathname` screen-view tracking unless you intentionally disabled Datamate's automatic route tracking.
+
+## Script Tag Setup
+
+If you prefer not to use the React component, add the script in `pages/_document.tsx`:
+
+```tsx
+import { Head, Html, Main, NextScript } from "next/document";
+
+export default function Document() {
+  return (
+    <Html lang="en">
+      <Head>
+        <script
+          async
+          data-client-id={process.env.NEXT_PUBLIC_DATAMATE_CLIENT_ID}
+          data-track-errors
+          data-track-web-vitals
+          src="https://cdn.datamate.cc/datamate.js"
+        />
+      </Head>
+      <body>
+        <Main />
+        <NextScript />
+      </body>
+    </Html>
+  );
+}
+```
+
+Use either the React component or the script tag, not both.
+
+## Track Custom Events
+
+Use the SDK helper from client components:
+
+```tsx
+"use client";
+
+import { track } from "@datamate/sdk";
+
+export function SubscribeButton() {
+  return (
+    <button
+      onClick={() =>
+        track("subscribe_clicked", {
+          location: "header",
+        })
+      }
+      type="button"
+    >
+      Subscribe
+    </button>
+  );
+}
+```
+
+For server-side events from route handlers, use the Node SDK instead of the browser tracker.
+
+## Production Setup
+
+Add `NEXT_PUBLIC_DATAMATE_CLIENT_ID` to your deployment provider. On Vercel, set it in Project Settings → Environment Variables for production and preview environments.
+
+To avoid test data, disable tracking outside production:
+
+```tsx
+<Datamate
+  clientId={process.env.NEXT_PUBLIC_DATAMATE_CLIENT_ID!}
+  disabled={process.env.NODE_ENV !== "production"}
+  trackErrors
+	trackWebVitals
+/>
+```
+
+## Troubleshooting
+
+**No data in the dashboard**
+
+1. Confirm `NEXT_PUBLIC_DATAMATE_CLIENT_ID` is set and matches the website in Datamate.
+2. Check the browser Network tab for requests to `basket.datamate.cc`.
+3. Make sure the component or script is included only once.
+4. If `disabled` is set, confirm it is `false` in the environment you are testing.
+
+## Related
+
+<Cards>
+  <Card title="React SDK" href="/docs/sdk/react">
+    React component props, hooks, and examples.
+  </Card>
+  <Card title="SDK Configuration" href="/docs/sdk/configuration">
+    All tracking options across supported SDKs.
+  </Card>
+  <Card title="Tracker Helpers" href="/docs/sdk/tracker">
+    Helper methods for custom events and identity.
+  </Card>
+  <Card title="Node SDK" href="/docs/sdk/node">
+    Server-side event tracking for API routes and jobs.
+  </Card>
+</Cards>

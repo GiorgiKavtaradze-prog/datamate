@@ -1,0 +1,95 @@
+"use client";
+
+import { SiReddit, SiX } from "@icons-pack/react-simple-icons";
+import { SciFiButton } from "@/components/landing/scifi-btn";
+import { formatCurrencyFull } from "./calculator-engine";
+
+const CALCULATOR_BASE = "https://www.datamate.cc/calculator";
+
+function buildShareUrl(
+	lostRevenueYearly: number,
+	monthlyVisitors: number,
+	datamateMonthlyCost: number
+): string {
+	const params = new URLSearchParams({
+		revenue: String(Math.round(lostRevenueYearly)),
+		visitors: String(Math.round(monthlyVisitors)),
+		cost: String(Math.round(datamateMonthlyCost)),
+	});
+	return `${CALCULATOR_BASE}?${params.toString()}`;
+}
+
+function buildTwitterShareUrl(
+	lostRevenueYearly: number,
+	monthlyVisitors: number,
+	datamateMonthlyCost: number
+): string {
+	const shareUrl = buildShareUrl(
+		lostRevenueYearly,
+		monthlyVisitors,
+		datamateMonthlyCost
+	);
+	const text = `🍪 ~${formatCurrencyFull(lostRevenueYearly)}/yr modeled unattributed revenue (cookie-consent measurement gap, not literal loss). Model yours →`;
+	const params = new URLSearchParams({ text, url: shareUrl });
+	return `https://x.com/intent/tweet?${params.toString()}`;
+}
+
+function buildRedditShareUrl(
+	lostRevenueYearly: number,
+	monthlyVisitors: number,
+	datamateMonthlyCost: number
+): string {
+	const shareUrl = buildShareUrl(
+		lostRevenueYearly,
+		monthlyVisitors,
+		datamateMonthlyCost
+	);
+	const title = `Modeled unattributed revenue (measurement gap): ${formatCurrencyFull(lostRevenueYearly)}/year`;
+	const params = new URLSearchParams({ url: shareUrl, title });
+	return `https://www.reddit.com/submit?${params.toString()}`;
+}
+
+interface ShareButtonsProps {
+	datamateMonthlyCost: number;
+	lostRevenueYearly: number;
+	monthlyVisitors: number;
+}
+
+export function ShareButtons({
+	lostRevenueYearly,
+	monthlyVisitors,
+	datamateMonthlyCost,
+}: ShareButtonsProps) {
+	const twitterUrl = buildTwitterShareUrl(
+		lostRevenueYearly,
+		monthlyVisitors,
+		datamateMonthlyCost
+	);
+	const redditUrl = buildRedditShareUrl(
+		lostRevenueYearly,
+		monthlyVisitors,
+		datamateMonthlyCost
+	);
+
+	return (
+		<div className="space-y-3">
+			<p className="text-muted-foreground text-xs">
+				Share your results (preview uses your numbers)
+			</p>
+			<div className="flex flex-wrap gap-2">
+				<SciFiButton asChild>
+					<a href={twitterUrl} rel="noopener noreferrer" target="_blank">
+						<SiX className="size-3.5" />
+						<span>Share on X</span>
+					</a>
+				</SciFiButton>
+				<SciFiButton asChild>
+					<a href={redditUrl} rel="noopener noreferrer" target="_blank">
+						<SiReddit className="size-3.5" />
+						<span>Share on Reddit</span>
+					</a>
+				</SciFiButton>
+			</div>
+		</div>
+	);
+}

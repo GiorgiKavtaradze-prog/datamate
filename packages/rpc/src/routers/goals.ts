@@ -1,0 +1,560 @@
+import { and, desc, eq, inArray, isNull } from "@datamate/db";
+import { goals } from "@datamate/db/schema";
+import { createDrizzleCache, redis } from "@datamate/redis";
+import { GATED_FEATURES } from "@datamate/shared/types/features";
+import { randomUUIDv7 } from "bun";
+import { z } from "zod";
+import { rpcError } from "../errors";
+import {
+	type AnalyticsStep,
+	getTotalWebsiteUsers,
+	processGoalAnalytics,
+} from "../lib/analytics-utils";
+import { logger } from "../lib/logger";
+import { invalidateGoalsCache } from "../lib/goals-cache";
+import { setTrackProperties } from "../middleware/track-mutation";
+import { publicProcedure, trackedProcedure } from "../orpc";
+import {
+	withPublicWorkspace,
+	withWebsiteRead,
+	withWorkspace,
+} from "../procedures/with-workspace";
+import { requireFeatureWithLimit } from "../types/billing";
+import { queueDefinitionChangeRechecks } from "./insights";
+
+const ANALYTICS_CACHE_TTL = 180;
+const cache = createDrizzleCache({ redis, namespace: "goals" });
+
+const filterSchema = z.object({
+	field: z.string(),
+	operator: z.enum([
+		"equals",
+		"contains",
+		"not_contains",
+		"starts_with",
+		"ends_with",
+		"not_equals",
+		"in",
+		"not_in",
+	]),
+	value: z.union([z.string(), z.array(z.string())]),
+});
+
+type Filter = z.infer<typeof filterSchema>;
+
+const goalOutputSchema = z.object({
+	id: z.string(),
+	websiteId: z.string(),
+	type: z.enum(["PAGE_VIEW", "EVENT", "CUSTOM"]),
+	target: z.string(),
+	name: z.string(),
+	description: z.string().nullable(),
+	filters: z.array(filterSchema).nullable(),
+	ignoreHistoricData: z.boolean(),
+	isActive: z.boolean(),
+	createdBy: z.string(),
+	createdAt: z.coerce.date(),
+	updatedAt: z.coerce.date(),
+	deletedAt: z.nullable(z.coerce.date()),
+});
+
+const successOutputSchema = z.object({ success: z.literal(true) });
+
+const stepErrorInsightOutputSchema = z.object({
+	message: z.string(),
+	error_type: z.string(),
+	count: z.number(),
+});
+
+const stepAnalyticsOutputSchema = z.object({
+	step_number: z.number(),
+	step_name: z.string(),
+	users: z.number(),
+	total_users: z.number(),
+	conversion_rate: z.number(),
+	dropoffs: z.number(),
+	dropoff_rate: z.number(),
+	avg_time_to_complete: z.number(),
+	error_context_available: z.boolean(),
+	error_count: z.number(),
+	error_rate: z.number(),
+	top_errors: z.array(stepErrorInsightOutputSchema),
+});
+
+const timeSeriesPointSchema = z.object({
+	date: z.string(),
+	users: z.number(),
+	conversions: z.number(),
+	conversion_rate: z.number(),
+	dropoffs: z.number(),
+	avg_time: z.number(),
+});
+
+const goalAnalyticsOutputSchema = z.object({
+	overall_conversion_rate: z.number(),
+	total_users_entered: z.number(),
+	total_users_completed: z.number(),
+	avg_completion_time: z.number(),
+	avg_completion_time_formatted: z.string(),
+	biggest_dropoff_step: z.number(),
+	biggest_dropoff_rate: z.number(),
+	duration_available: z.boolean(),
+	steps_analytics: z.array(stepAnalyticsOutputSchema),
+	time_series: z.array(timeSeriesPointSchema).optional(),
+	error_insights: z.object({
+		available: z.boolean(),
+		total_errors: z.number(),
+		sessions_with_errors: z.number(),
+		dropoffs_with_errors: z.number(),
+		error_correlation_rate: z.number(),
+	}),
+});
+
+const goalAnalyticsResultSchema = z.discriminatedUnion("ok", [
+	z.object({ ok: z.literal(true), data: goalAnalyticsOutputSchema }),
+	z.object({ ok: z.literal(false), error: z.string() }),
+]);
+
+type GoalAnalyticsResult = z.infer<typeof goalAnalyticsResultSchema>;
+
+const getDefaultDateRange = () => {
+	const endDate = new Date().toISOString().split("T")[0];
+	const startDate = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000)
+		.toISOString()
+		.split("T")[0];
+	return { startDate, endDate };
+};
+
+const getEffectiveStartDate = (
+	requestedStartDate: string,
+	createdAt: Date | null,
+	ignoreHistoricData: boolean
+): string => {
+	if (!(ignoreHistoricData && createdAt)) {
+		return requestedStartDate;
+	}
+
+	const createdDate = new Date(createdAt).toISOString().split("T")[0];
+	return new Date(requestedStartDate) > new Date(createdDate)
+		? requestedStartDate
+		: createdDate;
+};
+
+const getAnalyticsStepType = (type: "CUSTOM" | "EVENT" | "PAGE_VIEW") =>
+	type === "PAGE_VIEW" ? "PAGE_VIEW" : "EVENT";
+
+export const goalsRouter = {
+	list: publicProcedure
+		.route({
+			method: "POST",
+			path: "/goals/list",
+			tags: ["Goals"],
+			summary: "List goals",
+			description:
+				"Returns all goals for a website. Requires website read permission.",
+		})
+		.input(z.object({ websiteId: z.string() }))
+		.output(z.array(goalOutputSchema))
+		.use(withWebsiteRead)
+		.handler(async ({ context, input }) => {
+			const rows = await context.db
+				.select()
+				.from(goals)
+				.where(
+					and(eq(goals.websiteId, input.websiteId), isNull(goals.deletedAt))
+				)
+				.orderBy(desc(goals.createdAt));
+
+			if (context.workspace.tier === "demo") {
+				return rows.map((row) => ({ ...row, createdBy: "" }));
+			}
+			return rows;
+		}),
+
+	getById: publicProcedure
+		.route({
+			method: "POST",
+			path: "/goals/getById",
+			tags: ["Goals"],
+			summary: "Get goal",
+			description:
+				"Returns a single goal by id; website is resolved from the goal. Requires website read permission.",
+		})
+		.input(z.object({ id: z.string() }))
+		.output(goalOutputSchema)
+		.handler(async ({ context, input }) => {
+			const [goal] = await context.db
+				.select()
+				.from(goals)
+				.where(and(eq(goals.id, input.id), isNull(goals.deletedAt)))
+				.limit(1);
+
+			if (!goal) {
+				throw rpcError.notFound("goal", input.id);
+			}
+
+			const workspace = await withPublicWorkspace(context, {
+				websiteId: goal.websiteId,
+				permissions: ["read"],
+			}).catch(() => {
+				throw rpcError.notFound("goal", input.id);
+			});
+
+			if (workspace.tier === "demo") {
+				return { ...goal, createdBy: "" };
+			}
+			return goal;
+		}),
+
+	create: trackedProcedure
+		.route({
+			method: "POST",
+			path: "/goals/create",
+			tags: ["Goals"],
+			summary: "Create goal",
+			description:
+				"Creates a new conversion goal. Requires goals feature and website update permission.",
+		})
+		.input(
+			z.object({
+				websiteId: z.string(),
+				type: z.enum(["PAGE_VIEW", "EVENT", "CUSTOM"]),
+				target: z.string().min(1),
+				name: z.string().min(1).max(100),
+				description: z.string().nullable().optional(),
+				filters: z.array(filterSchema).optional(),
+				ignoreHistoricData: z.boolean().optional(),
+			})
+		)
+		.output(goalOutputSchema)
+		.handler(async ({ context, input }) => {
+			setTrackProperties({ type: input.type });
+			const workspace = await withWorkspace(context, {
+				websiteId: input.websiteId,
+				permissions: ["update"],
+				includePlan: true,
+			});
+
+			const existingGoals = await context.db
+				.select({ id: goals.id })
+				.from(goals)
+				.where(
+					and(eq(goals.websiteId, input.websiteId), isNull(goals.deletedAt))
+				);
+
+			requireFeatureWithLimit(
+				workspace.plan,
+				GATED_FEATURES.GOALS,
+				existingGoals.length
+			);
+
+			const createdBy = await workspace.getCreatedBy();
+
+			const [newGoal] = await context.db
+				.insert(goals)
+				.values({
+					id: randomUUIDv7(),
+					websiteId: input.websiteId,
+					type: input.type,
+					target: input.target,
+					name: input.name,
+					description: input.description,
+					filters: input.filters,
+					ignoreHistoricData: input.ignoreHistoricData ?? false,
+					isActive: true,
+					createdBy,
+				})
+				.returning();
+
+			await invalidateGoalsCache(input.websiteId);
+
+			return newGoal;
+		}),
+
+	update: trackedProcedure
+		.route({
+			method: "POST",
+			path: "/goals/update",
+			tags: ["Goals"],
+			summary: "Update goal",
+			description:
+				"Updates an existing goal. Requires website update permission.",
+		})
+		.input(
+			z.object({
+				id: z.string(),
+				type: z.enum(["PAGE_VIEW", "EVENT", "CUSTOM"]).optional(),
+				target: z.string().min(1).optional(),
+				name: z.string().min(1).max(100).optional(),
+				description: z.string().nullable().optional(),
+				filters: z.array(filterSchema).optional(),
+				ignoreHistoricData: z.boolean().optional(),
+				isActive: z.boolean().optional(),
+			})
+		)
+		.output(goalOutputSchema)
+		.handler(async ({ context, input }) => {
+			const [existingGoal] = await context.db
+				.select({ websiteId: goals.websiteId })
+				.from(goals)
+				.where(and(eq(goals.id, input.id), isNull(goals.deletedAt)))
+				.limit(1);
+
+			if (!existingGoal) {
+				throw rpcError.notFound("goal", input.id);
+			}
+
+			await withWorkspace(context, {
+				websiteId: existingGoal.websiteId,
+				permissions: ["update"],
+			});
+
+			const { id, ...updates } = input;
+			const [updatedGoal] = await context.db
+				.update(goals)
+				.set({ ...updates, updatedAt: new Date() })
+				.where(and(eq(goals.id, id), isNull(goals.deletedAt)))
+				.returning();
+
+			await invalidateGoalsCache(existingGoal.websiteId);
+			await queueDefinitionChangeRechecks({
+				definitionId: id,
+				type: "goal",
+				websiteId: existingGoal.websiteId,
+			});
+
+			return updatedGoal;
+		}),
+
+	delete: trackedProcedure
+		.route({
+			method: "POST",
+			path: "/goals/delete",
+			tags: ["Goals"],
+			summary: "Delete goal",
+			description: "Soft-deletes a goal. Requires website delete permission.",
+		})
+		.input(z.object({ id: z.string() }))
+		.output(successOutputSchema)
+		.handler(async ({ context, input }) => {
+			const [existingGoal] = await context.db
+				.select({ websiteId: goals.websiteId })
+				.from(goals)
+				.where(and(eq(goals.id, input.id), isNull(goals.deletedAt)))
+				.limit(1);
+
+			if (!existingGoal) {
+				throw rpcError.notFound("goal", input.id);
+			}
+
+			await withWorkspace(context, {
+				websiteId: existingGoal.websiteId,
+				permissions: ["delete"],
+			});
+
+			await context.db
+				.update(goals)
+				.set({ deletedAt: new Date(), isActive: false })
+				.where(and(eq(goals.id, input.id), isNull(goals.deletedAt)));
+
+			await invalidateGoalsCache(existingGoal.websiteId);
+			await queueDefinitionChangeRechecks({
+				definitionId: input.id,
+				type: "goal",
+				websiteId: existingGoal.websiteId,
+			});
+
+			return { success: true };
+		}),
+
+	getAnalytics: publicProcedure
+		.route({
+			method: "POST",
+			path: "/goals/getAnalytics",
+			tags: ["Goals"],
+			summary: "Get goal analytics",
+			description:
+				"Returns conversion analytics for a single goal. Requires website read permission.",
+		})
+		.input(
+			z.object({
+				goalId: z.string(),
+				websiteId: z.string(),
+				startDate: z.string().optional(),
+				endDate: z.string().optional(),
+				filters: z.array(filterSchema).optional(),
+			})
+		)
+		.output(goalAnalyticsOutputSchema)
+		.use(withWebsiteRead)
+		.handler(async ({ context, input }) => {
+			const { startDate, endDate } =
+				input.startDate && input.endDate
+					? { startDate: input.startDate, endDate: input.endDate }
+					: getDefaultDateRange();
+
+			const [goal] = await context.db
+				.select()
+				.from(goals)
+				.where(
+					and(
+						eq(goals.id, input.goalId),
+						eq(goals.websiteId, input.websiteId),
+						isNull(goals.deletedAt)
+					)
+				)
+				.limit(1);
+
+			if (!goal) {
+				throw rpcError.notFound("goal", input.goalId);
+			}
+
+			const effectiveStartDate = getEffectiveStartDate(
+				startDate,
+				goal.createdAt,
+				goal.ignoreHistoricData
+			);
+
+			const requestFilters = input.filters ?? [];
+			const cacheKey = `analytics:${input.goalId}:${effectiveStartDate}:${endDate}:${JSON.stringify(requestFilters)}`;
+
+			return cache.withCache({
+				key: cacheKey,
+				ttl: ANALYTICS_CACHE_TTL,
+				tables: ["goals"],
+				queryFn: async () => {
+					const steps: AnalyticsStep[] = [
+						{
+							step_number: 1,
+							type: getAnalyticsStepType(goal.type),
+							target: goal.target,
+							name: goal.name,
+						},
+					];
+
+					const filters = (goal.filters as Filter[]) || [];
+					const combinedFilters = [...requestFilters, ...filters];
+					const totalWebsiteUsers = await getTotalWebsiteUsers(
+						input.websiteId,
+						effectiveStartDate,
+						endDate,
+						combinedFilters
+					);
+					return await processGoalAnalytics(
+						steps,
+						combinedFilters,
+						{
+							websiteId: input.websiteId,
+							startDate: effectiveStartDate,
+							endDate: `${endDate} 23:59:59`,
+						},
+						totalWebsiteUsers
+					);
+				},
+			});
+		}),
+
+	bulkAnalytics: publicProcedure
+		.route({
+			method: "POST",
+			path: "/goals/bulkAnalytics",
+			tags: ["Goals"],
+			summary: "Get bulk goal analytics",
+			description:
+				"Returns conversion analytics for multiple goals. Requires website read permission.",
+		})
+		.input(
+			z.object({
+				websiteId: z.string(),
+				goalIds: z.array(z.string()).min(1),
+				startDate: z.string().optional(),
+				endDate: z.string().optional(),
+				filters: z.array(filterSchema).optional(),
+			})
+		)
+		.output(z.record(z.string(), goalAnalyticsResultSchema))
+		.use(withWebsiteRead)
+		.handler(async ({ context, input }) => {
+			const { startDate, endDate } =
+				input.startDate && input.endDate
+					? { startDate: input.startDate, endDate: input.endDate }
+					: getDefaultDateRange();
+
+			const goalsList = await context.db
+				.select()
+				.from(goals)
+				.where(
+					and(
+						eq(goals.websiteId, input.websiteId),
+						isNull(goals.deletedAt),
+						inArray(goals.id, input.goalIds)
+					)
+				)
+				.orderBy(desc(goals.createdAt));
+
+			const requestFilters = input.filters ?? [];
+			const results = await Promise.all(
+				goalsList.map(async (goal): Promise<[string, GoalAnalyticsResult]> => {
+					const effectiveStartDate = getEffectiveStartDate(
+						startDate,
+						goal.createdAt,
+						goal.ignoreHistoricData
+					);
+
+					const steps: AnalyticsStep[] = [
+						{
+							step_number: 1,
+							type: getAnalyticsStepType(goal.type),
+							target: goal.target,
+							name: goal.name,
+						},
+					];
+
+					const filters = (goal.filters as Filter[]) || [];
+					const combinedFilters = [...requestFilters, ...filters];
+
+					try {
+						const totalUsers = await getTotalWebsiteUsers(
+							input.websiteId,
+							effectiveStartDate,
+							endDate,
+							combinedFilters
+						);
+						const analytics = await processGoalAnalytics(
+							steps,
+							combinedFilters,
+							{
+								websiteId: input.websiteId,
+								startDate: effectiveStartDate,
+								endDate: `${endDate} 23:59:59`,
+							},
+							totalUsers
+						);
+						return [goal.id, { ok: true, data: analytics }];
+					} catch (error) {
+						logger.error(
+							{
+								error,
+								goalId: goal.id,
+								websiteId: input.websiteId,
+							},
+							"Failed to process goal analytics"
+						);
+						return [
+							goal.id,
+							{
+								ok: false,
+								error: "Failed to process goal analytics",
+							},
+						];
+					}
+				})
+			);
+
+			const analyticsByGoal: Record<string, GoalAnalyticsResult> = {};
+			for (const [goalId, result] of results) {
+				analyticsByGoal[goalId] = result;
+			}
+			return analyticsByGoal;
+		}),
+};

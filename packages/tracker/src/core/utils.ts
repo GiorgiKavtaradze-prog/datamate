@@ -1,0 +1,281 @@
+/** biome-ignore-all lint/suspicious/noBitwiseOperators: We need it */
+import type { TrackerOptions } from "./types";
+
+declare const process: { env: { DATAMATE_DEBUG: string | boolean } };
+
+export const isDebugMode = () => Boolean(process.env.DATAMATE_DEBUG);
+
+export const isLocalhost = () => {
+	if (typeof window === "undefined") {
+		return false;
+	}
+	const hostname = window.location.hostname;
+	return (
+		hostname === "localhost" ||
+		hostname === "127.0.0.1" ||
+		hostname === "0.0.0.0" ||
+		hostname.endsWith(".local")
+	);
+};
+
+const DATA_ATTR_REGEX = /-./g;
+const NUMBER_REGEX = /^\d+$/;
+
+function parseConfigValue(
+	value: string,
+	emptyStringIsTrue = false
+): boolean | number | string {
+	if (value === "true" || (emptyStringIsTrue && value === "")) {
+		return true;
+	}
+	if (value === "false") {
+		return false;
+	}
+	return NUMBER_REGEX.test(value) ? Number(value) : value;
+}
+
+function parseJsonAttribute(value: string): unknown {
+	try {
+		return JSON.parse(value);
+	} catch {
+		return [];
+	}
+}
+
+export function maskPathname(
+	pathname: string,
+	patterns: readonly string[] | undefined
+): string {
+	if (!patterns) {
+		return pathname;
+	}
+	for (const pattern of patterns) {
+		if (typeof pattern !== "string" || !pattern.includes("*")) {
+			continue;
+		}
+		const masked = applyMaskPattern(pathname, pattern);
+		if (masked !== null) {
+			return masked;
+		}
+	}
+	return pathname;
+}
+
+export function buildPagePath(
+	origin: string,
+	pathname: string,
+	patterns?: readonly string[]
+): string {
+	return `${origin}${maskPathname(pathname, patterns)}`;
+}
+
+export function sanitizePageUrl(value: string): string {
+	if (!value) {
+		return "";
+	}
+	try {
+		const url = new URL(value);
+		if (!(url.protocol === "http:" || url.protocol === "https:")) {
+			return "";
+		}
+		return `${url.origin}${url.pathname}`;
+	} catch {
+		return "";
+	}
+}
+
+function applyMaskPattern(pathname: string, pattern: string): string | null {
+	const normalized =
+		pattern.length > 1 && pattern.endsWith("/")
+			? pattern.slice(0, -1)
+			: pattern;
+	const patternSegments = normalized.split("/");
+	const pathSegments = pathname.split("/");
+	const masked: string[] = [];
+
+	for (let i = 0; i < patternSegments.length; i++) {
+		const patternSegment = patternSegments[i];
+		if (patternSegment === "**") {
+			if (pathSegments.slice(i).some((segment) => segment.length > 0)) {
+				masked.push("*");
+			}
+			return masked.join("/") || "/";
+		}
+		if (i >= pathSegments.length) {
+			return null;
+		}
+		if (!patternSegment.includes("*")) {
+			if (patternSegment !== pathSegments[i]) {
+				return null;
+			}
+			masked.push(pathSegments[i]);
+			continue;
+		}
+		if (!segmentMatches(patternSegment, pathSegments[i])) {
+			return null;
+		}
+		masked.push(patternSegment);
+	}
+
+	masked.push(...pathSegments.slice(patternSegments.length));
+	return masked.join("/");
+}
+
+function segmentMatches(patternSegment: string, pathSegment: string): boolean {
+	const parts = patternSegment.split("*");
+	const prefix = parts[0] ?? "";
+	const suffix = parts.at(-1) ?? "";
+	if (
+		pathSegment.length < prefix.length + suffix.length ||
+		!(pathSegment.startsWith(prefix) && pathSegment.endsWith(suffix))
+	) {
+		return false;
+	}
+	let cursor = prefix.length;
+	const end = pathSegment.length - suffix.length;
+	for (const fragment of parts.slice(1, -1)) {
+		if (fragment === "") {
+			continue;
+		}
+		const found = pathSegment.indexOf(fragment, cursor);
+		if (found === -1 || found + fragment.length > end) {
+			return false;
+		}
+		cursor = found + fragment.length;
+	}
+	return true;
+}
+
+export const generateUUIDv4 = () => {
+	if (typeof crypto !== "undefined" && crypto.randomUUID) {
+		return crypto.randomUUID();
+	}
+	if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+		const bytes = new Uint8Array(16);
+		crypto.getRandomValues(bytes);
+		// Set RFC 4122 version (4) and variant (10xx) bits
+		bytes[6] = (bytes[6] & 0x0f) | 0x40;
+		bytes[8] = (bytes[8] & 0x3f) | 0x80;
+		const hex = Array.from(bytes, (b) => b.toString(16).padStart(2, "0")).join(
+			""
+		);
+		return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+	}
+	throw new Error("No secure random source available for UUID generation");
+};
+
+export function isOptedOut(): boolean {
+	if (typeof window === "undefined") {
+		return false;
+	}
+	if (
+		typeof navigator !== "undefined" &&
+		(navigator.globalPrivacyControl === true || navigator.doNotTrack === "1")
+	) {
+		return true;
+	}
+	try {
+		return (
+			localStorage.getItem("datamate_opt_out") === "true" ||
+			localStorage.getItem("datamate_disabled") === "true" ||
+			window.datamateOptedOut === true ||
+			window.datamateDisabled === true
+		);
+	} catch {
+		return window.datamateOptedOut === true || window.datamateDisabled === true;
+	}
+}
+
+export function clearStoredTrackingState(): void {
+	if (typeof window === "undefined") {
+		return;
+	}
+	if (typeof localStorage !== "undefined") {
+		try {
+			localStorage.removeItem("did");
+			localStorage.removeItem("did_profile");
+			localStorage.removeItem("did_params");
+		} catch {
+			// Local storage may be blocked by the browser.
+		}
+	}
+	if (typeof sessionStorage !== "undefined") {
+		try {
+			sessionStorage.removeItem("did_session");
+			sessionStorage.removeItem("did_session_timestamp");
+			sessionStorage.removeItem("did_session_start");
+			sessionStorage.removeItem("did_profile_sent");
+		} catch {
+			// Session storage may be blocked by the browser.
+		}
+	}
+}
+
+export function getTrackerConfig(): TrackerOptions {
+	if (typeof window === "undefined") {
+		return { clientId: "" };
+	}
+	let script = document.currentScript as HTMLScriptElement;
+
+	if (!script) {
+		const scripts = document.getElementsByTagName("script");
+		for (const currentScript of scripts) {
+			const src = currentScript.src;
+			if (
+				src &&
+				(src.includes("/datamate.js") || src.includes("/datamate-debug.js"))
+			) {
+				script = currentScript;
+				break;
+			}
+		}
+	}
+
+	const globalConfig = window.datamateConfig || {};
+	const config: TrackerOptions & Record<string, unknown> = {
+		clientId: "",
+		...globalConfig,
+	};
+
+	if (script) {
+		for (const attr of script.attributes) {
+			if (attr.name.startsWith("data-")) {
+				const key = attr.name
+					.slice(5)
+					.replace(DATA_ATTR_REGEX, (x: string) => x[1].toUpperCase());
+				config[key] =
+					key === "skipPatterns" || key === "maskPatterns"
+						? parseJsonAttribute(attr.value)
+						: parseConfigValue(attr.value, true);
+			}
+		}
+
+		try {
+			const srcUrl = new URL(script.src);
+			srcUrl.searchParams.forEach((value, key) => {
+				config[key] = parseConfigValue(value);
+			});
+		} catch {
+			/* ignore */
+		}
+	}
+	return config;
+}
+
+export const logger = {
+	log: (...args: unknown[]) => {
+		if (process.env.DATAMATE_DEBUG) {
+			console.log("[Datamate]", ...args);
+		}
+	},
+	error: (...args: unknown[]) => {
+		if (process.env.DATAMATE_DEBUG) {
+			console.error("[Datamate]", ...args);
+		}
+	},
+	warn: (...args: unknown[]) => {
+		if (process.env.DATAMATE_DEBUG) {
+			console.warn("[Datamate]", ...args);
+		}
+	},
+};

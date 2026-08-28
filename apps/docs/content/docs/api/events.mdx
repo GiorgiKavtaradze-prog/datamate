@@ -1,0 +1,363 @@
+---
+title: Event Tracking
+description: Send custom events programmatically via the Basket API
+---
+
+import { Callout, CodeBlock } from "@/components/docs";
+
+Track custom events programmatically using the Basket API. This is useful for server-side tracking, mobile apps, or custom integrations.
+
+## Base URL
+
+<CodeBlock 
+  language="text"
+  code="https://basket.datamate.cc"
+/>
+
+## Authentication
+
+You can authenticate requests using either:
+
+1. **API Key** (recommended for server-side) — Pass in the `Authorization` header
+2. **Client ID** — Pass as the `website_id` query parameter or as `websiteId` in the event body
+
+<CodeBlock 
+  language="http"
+  code={`# With API Key
+POST /track
+Authorization: Bearer your_api_key
+
+# With Client ID
+POST /track?website_id={website_id}`}
+/>
+
+<Callout type="info">
+  API keys require the `track:events` scope to send events.
+</Callout>
+
+---
+
+## Track Events
+
+The primary endpoint for sending custom events.
+
+<CodeBlock 
+  language="http"
+  code="POST /track"
+/>
+
+### Single Event
+
+<CodeBlock 
+  language="json"
+  code={`{
+  "name": "purchase",
+  "properties": {
+    "value": 99.99,
+    "currency": "USD",
+    "product_id": "prod_123"
+  },
+  "anonymousId": "anon_user_123",
+  "sessionId": "session_456",
+  "timestamp": 1704067200000
+}`}
+/>
+
+### Batch Events
+
+Send an array of events in a single request:
+
+<CodeBlock 
+  language="json"
+  code={`[
+  {
+    "name": "page_view",
+    "properties": { "page": "/pricing" },
+    "timestamp": 1704067200000
+  },
+  {
+    "name": "purchase",
+    "properties": { "value": 99.99 },
+    "timestamp": 1704067260000
+  }
+]`}
+/>
+
+### Response
+
+<CodeBlock 
+  language="json"
+  code={`{
+  "status": "success",
+  "type": "custom_event",
+  "count": 1
+}`}
+/>
+
+### Event Fields
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Event name (1-256 characters) |
+| `properties` | object | No | Custom event properties |
+| `anonymousId` | string | No | Anonymous user identifier (max 256 chars) |
+| `sessionId` | string | No | Session identifier (max 256 chars) |
+| `timestamp` | number \| string \| Date | No | Event timestamp (defaults to now) |
+| `namespace` | string | No | Event namespace for grouping (max 64 chars) |
+| `source` | string | No | Event source identifier (max 64 chars) |
+| `websiteId` | string | No | Public Datamate Client ID (same value as `data-client-id` in the tracker; string id from the dashboard, not necessarily a UUID). Alternative to `?website_id=` |
+
+---
+
+## Server-Side Examples
+
+### Node.js / TypeScript
+
+<CodeBlock 
+  language="typescript"
+  code={`async function trackEvent(
+  name: string,
+  properties?: Record<string, unknown>
+) {
+  const response = await fetch('https://basket.datamate.cc/track', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer your_api_key'
+    },
+    body: JSON.stringify({
+      name,
+      properties,
+      timestamp: Date.now()
+    })
+  });
+  return response.json();
+}
+
+// Usage
+await trackEvent('purchase', {
+  value: 99.99,
+  currency: 'USD',
+  product_id: 'prod_123'
+});`}
+/>
+
+### Python
+
+<CodeBlock 
+  language="python"
+  code={`import requests
+import time
+
+def track_event(name: str, properties: dict = None):
+    response = requests.post(
+        "https://basket.datamate.cc/track",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer your_api_key"
+        },
+        json={
+            "name": name,
+            "properties": properties or {},
+            "timestamp": int(time.time() * 1000)
+        }
+    )
+    return response.json()
+
+# Usage
+track_event("purchase", {
+    "value": 99.99,
+    "currency": "USD",
+    "product_id": "prod_123"
+})`}
+/>
+
+### cURL
+
+<CodeBlock 
+  language="bash"
+  code={`curl -X POST https://basket.datamate.cc/track \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: Bearer your_api_key" \\
+  -d '{
+    "name": "purchase",
+    "properties": {
+      "value": 99.99,
+      "currency": "USD"
+    }
+  }'`}
+/>
+
+---
+
+## Common Event Examples
+
+### E-commerce Purchase
+
+<CodeBlock 
+  language="json"
+  code={`{
+  "name": "purchase",
+  "properties": {
+    "order_id": "order_123",
+    "value": 149.99,
+    "currency": "USD",
+    "items": [
+      {"sku": "SKU-001", "name": "Product A", "quantity": 2, "price": 49.99},
+      {"sku": "SKU-002", "name": "Product B", "quantity": 1, "price": 50.01}
+    ]
+  }
+}`}
+/>
+
+### User Signup
+
+<CodeBlock 
+  language="json"
+  code={`{
+  "name": "signup",
+  "properties": {
+    "method": "email",
+    "plan": "free",
+    "referrer": "google"
+  }
+}`}
+/>
+
+### Feature Usage
+
+<CodeBlock 
+  language="json"
+  code={`{
+  "name": "feature_used",
+  "namespace": "dashboard",
+  "properties": {
+    "feature": "export_csv",
+    "format": "xlsx"
+  }
+}`}
+/>
+
+### Subscription Event
+
+<CodeBlock 
+  language="json"
+  code={`{
+  "name": "subscription_started",
+  "properties": {
+    "plan": "pro",
+    "billing_cycle": "annual",
+    "mrr": 99
+  }
+}`}
+/>
+
+---
+
+## Additional Endpoints
+
+These endpoints are used by the JavaScript tracker SDK and are documented here for completeness. The `client_id` query value is your Datamate Client ID.
+
+### Web Vitals
+
+Track Core Web Vitals metrics.
+
+<CodeBlock 
+  language="http"
+  code="POST /vitals?client_id={client_id}"
+/>
+
+<CodeBlock 
+  language="json"
+  code={`[
+  {
+    "timestamp": 1704067200000,
+    "path": "https://example.com/page",
+    "metricName": "LCP",
+    "metricValue": 2500
+  }
+]`}
+/>
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `timestamp` | number | Yes | Unix timestamp in milliseconds |
+| `path` | string | Yes | Page URL |
+| `metricName` | string | Yes | One of: `FCP`, `LCP`, `CLS`, `INP`, `TTFB`, `FPS` |
+| `metricValue` | number | Yes | Metric value |
+| `anonymousId` | string | No | Anonymous user identifier |
+| `sessionId` | string | No | Session identifier |
+
+### Error Tracking
+
+Track JavaScript errors.
+
+<CodeBlock 
+  language="http"
+  code="POST /errors?client_id={client_id}"
+/>
+
+<CodeBlock 
+  language="json"
+  code={`[
+  {
+    "timestamp": 1704067200000,
+    "path": "https://example.com/app",
+    "message": "Cannot read property 'id' of undefined",
+    "filename": "https://example.com/app.js",
+    "lineno": 42,
+    "colno": 15,
+    "stack": "TypeError: ...",
+    "errorType": "TypeError"
+  }
+]`}
+/>
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `timestamp` | number | Yes | Unix timestamp in milliseconds |
+| `path` | string | Yes | Page URL |
+| `message` | string | Yes | Error message |
+| `filename` | string | No | Source file |
+| `lineno` | number | No | Line number |
+| `colno` | number | No | Column number |
+| `stack` | string | No | Stack trace |
+| `errorType` | string | No | Error type (e.g. `TypeError`) |
+| `anonymousId` | string | No | Anonymous user identifier |
+| `sessionId` | string | No | Session identifier |
+
+---
+
+## Error Responses
+
+<CodeBlock 
+  language="json"
+  code={`{
+  "status": "error",
+  "message": "Description of the error"
+}`}
+/>
+
+| Status | Message | Description |
+|--------|---------|-------------|
+| 400 | Invalid request body | Request body failed validation |
+| 400 | Website missing organization | Website not properly configured |
+| 401 | API key or website_id required | No authentication provided |
+| 403 | API key missing track:events scope | API key lacks required scope |
+| 404 | Website not found | Invalid website_id |
+| 500 | Internal server error | Server error |
+
+---
+
+## Best Practices
+
+1. **Use consistent event names** — Use snake_case and be descriptive (`button_click` not `click`)
+2. **Use namespaces** — Group related events with the `namespace` field
+3. **Include context** — Add properties that help segment and analyze later
+4. **Batch when possible** — Send arrays of events to reduce HTTP overhead
+5. **Do not track PII** — Avoid personally identifiable information in properties
+6. **Use server-side for sensitive events** — Track purchases and signups server-side with API keys
+
+<Callout type="warning">
+  Event properties are stored as JSON. Keep values simple (strings, numbers, booleans) for best query performance.
+</Callout>

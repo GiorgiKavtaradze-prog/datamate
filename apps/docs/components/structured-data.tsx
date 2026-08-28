@@ -1,0 +1,425 @@
+import { serializeJsonLd } from "@datamate/shared/json-ld";
+import type { RawItem, RawPlan } from "@/app/(home)/pricing/data";
+
+interface Breadcrumb {
+	name: string;
+	url: string;
+}
+interface FAQItem {
+	answer: string;
+	question: string;
+}
+
+interface PageProps {
+	breadcrumbs?: Breadcrumb[];
+	dateModified?: string;
+	datePublished?: string;
+	description?: string;
+	imageUrl?: string;
+	inLanguage?: string;
+	title?: string;
+	url?: string;
+}
+
+interface ArticleProps {
+	dateModified?: string;
+	datePublished: string;
+	description?: string;
+	imageUrl?: string;
+	title: string;
+}
+
+interface DocumentationProps extends ArticleProps {
+	keywords?: string[];
+	section?: string;
+}
+
+interface SoftwareApplicationProps {
+	description?: string;
+	featureList?: string[];
+	name?: string;
+	softwareVersion?: string;
+}
+
+type ElementItem =
+	| { type: "article"; value: ArticleProps }
+	| { type: "documentation"; value: DocumentationProps }
+	| { type: "faq"; items: FAQItem[] }
+	| { type: "softwareApplication"; value?: SoftwareApplicationProps }
+	| { type: "softwareOffers"; name?: string; plans: RawPlan[] };
+
+interface StructuredDataProps {
+	baseUrl?: string; // default: https://www.datamate.cc
+
+	/** Mixed, repeatable elements */
+	elements?: ElementItem[];
+	logoUrl?: string; // default: {baseUrl}/logo.png
+
+	page: PageProps;
+}
+
+const EMPTY_ELEMENTS: ElementItem[] = [];
+
+function planToOffer(plan: RawPlan, baseUrl: string) {
+	const BLOCK_UNITS_FOR_EVENTS = 1000; // price is expressed per 1,000 events
+	const toUnitCode = (interval: "day" | "month" | null | undefined) =>
+		interval === "month" ? "MON" : interval === "day" ? "DAY" : undefined;
+	const priceStr = (n: number, decimals = 2) => n.toFixed(decimals); // avoid scientific notation
+
+	const priceItem = plan.items.find((i) => i.type === "price");
+	const basePrice =
+		priceItem && typeof priceItem.price === "number" ? priceItem.price : 0;
+
+	// Included features → additionalProperty
+	const included = plan.items
+		.filter(
+			(i): i is Extract<RawItem, { type: "feature" }> => i.type === "feature"
+		)
+		.map((i) => ({
+			"@type": "PropertyValue",
+			name: i.feature?.name,
+			value:
+				i.included_usage === "inf" ? "Unlimited" : String(i.included_usage),
+			unitText: i.interval ? `per ${i.interval}` : undefined,
+		}));
+
+	// Overage & add-ons → priceSpecification[]
+	const priceSpecs: any[] = [];
+
+	// Base monthly plan price
+	if (priceItem) {
+		priceSpecs.push({
+			"@type": "UnitPriceSpecification",
+			price: priceStr(basePrice, 2),
+			priceCurrency: "USD",
+			unitCode: "MON",
+			unitText: "per month",
+		});
+	}
+
+	const items = plan.items.filter(
+		(i): i is Extract<RawItem, { type: "priced_feature" }> =>
+			i.type === "priced_feature"
+	);
+
+	// priced_feature with tiers (events, extra websites, etc.)
+	for (const pf of items) {
+		// Event overage tiers → convert per-event micro price to per-1,000 events
+		if (pf.feature?.id === "events" && pf.tiers?.length) {
+			// Start tier ranges right after included quota (if any)
+			let prevMax: number | undefined =
+				typeof pf.included_usage === "number" ? pf.included_usage : undefined;
+
+			for (const t of pf.tiers) {
+				const minValue = prevMax == null ? undefined : prevMax + 1;
+				const maxValue = t.to === "inf" ? undefined : (t.to as number);
+
+				priceSpecs.push({
+					"@type": "UnitPriceSpecification",
+					price: priceStr(t.amount * BLOCK_UNITS_FOR_EVENTS, 2), // e.g. "0.03" per 1,000 events
+					priceCurrency: "USD",
+					referenceQuantity: {
+						"@type": "QuantitativeValue",
+						value: BLOCK_UNITS_FOR_EVENTS,
+						unitText: "events",
+					},
+					eligibleQuantity: {
+						"@type": "QuantitativeValue",
+						minValue,
+						maxValue,
+						unitText: "events",
+					},
+					unitText: "per 1,000 events (overage)",
+				});
+
+				if (t.to !== "inf") {
+					prevMax = t.to as number;
+				}
+			}
+		}
+		// Other priced features (e.g., extra websites per month)
+		else if (typeof pf.price === "number") {
+			const refUnit = toUnitCode(pf.interval);
+			priceSpecs.push({
+				"@type": "UnitPriceSpecification",
+				price: priceStr(pf.price, 2), // e.g. "0.50"
+				priceCurrency: "USD",
+				unitText: `per ${pf.feature?.display?.singular ?? "unit"}`,
+				...(refUnit
+					? {
+							referenceQuantity: {
+								"@type": "QuantitativeValue",
+								value: 1,
+								unitCode: refUnit, // MON or DAY
+							},
+						}
+					: {}),
+			});
+		}
+	}
+
+	return {
+		"@type": "Offer",
+		name: plan.name,
+		url: `${baseUrl}/pricing#${plan.id}`,
+		price: basePrice, // simple base price (numeric) for the plan itself
+		priceCurrency: "USD",
+		priceSpecification: priceSpecs,
+		itemOffered: {
+			"@type": "SoftwareApplication",
+			name: "Datamate",
+			operatingSystem: "Web",
+			applicationCategory: "BusinessApplication",
+			url: baseUrl,
+		},
+		additionalProperty: included.length ? included : undefined,
+	};
+}
+
+export function StructuredData({
+	baseUrl = "https://www.datamate.cc",
+	logoUrl = `${"https://www.datamate.cc"}/logo.png`,
+	page,
+	elements = EMPTY_ELEMENTS,
+}: StructuredDataProps) {
+	const abs = (u?: string) =>
+		u ? (u.startsWith("http") ? u : `${baseUrl}${u}`) : undefined;
+	const pageUrl = abs(page.url) ?? baseUrl;
+	const lang = page.inLanguage || "en";
+
+	const orgId = `${baseUrl}#organization`;
+	const websiteId = `${baseUrl}#website`;
+	const webPageId = `${pageUrl}#webpage`;
+	const breadcrumbId = `${pageUrl}#breadcrumb`;
+	const faqId = `${pageUrl}#faq`;
+	const softwareId = `${baseUrl}#software`;
+	const serviceId = `${baseUrl}#analytics-service`;
+
+	const graph: any[] = [];
+
+	// Organization (always)
+	graph.push({
+		"@type": "Organization",
+		"@id": orgId,
+		name: "Datamate",
+		legalName: "Datamate Analytics, Inc.",
+		url: baseUrl,
+		logo: { "@type": "ImageObject", url: logoUrl },
+		sameAs: [
+			"https://github.com/datamate-analytics",
+			"https://x.com/trydatamate",
+			"https://www.linkedin.com/company/datamate-analytics",
+			"https://www.npmjs.com/package/@datamate/sdk",
+			"https://pypi.org/project/datamate/",
+		],
+		email: "support@datamate.cc",
+		contactPoint: {
+			"@type": "ContactPoint",
+			contactType: "Customer Support",
+			email: "support@datamate.cc",
+			url: `${baseUrl}/contact`,
+		},
+		address: {
+			"@type": "PostalAddress",
+			addressCountry: "US",
+		},
+		areaServed: "Worldwide",
+	});
+
+	// WebSite (always)
+	graph.push({
+		"@type": "WebSite",
+		"@id": websiteId,
+		url: baseUrl,
+		name: "Datamate",
+		publisher: { "@id": orgId },
+	});
+
+	// WebPage (anchor)
+	graph.push({
+		"@type": "WebPage",
+		"@id": webPageId,
+		url: pageUrl,
+		name: page.title,
+		description: page.description,
+		isPartOf: { "@id": websiteId },
+		about: { "@id": orgId },
+		breadcrumb: page.breadcrumbs?.length ? { "@id": breadcrumbId } : undefined,
+		datePublished: page.datePublished,
+		dateModified: page.dateModified || page.datePublished,
+		image: page.imageUrl
+			? { "@type": "ImageObject", url: abs(page.imageUrl) }
+			: undefined,
+		inLanguage: lang,
+		speakable: {
+			"@type": "SpeakableSpecification",
+			cssSelector: ["#hero h1", "#faq"],
+		},
+	});
+
+	graph.push({
+		"@type": "Service",
+		"@id": serviceId,
+		name: "Datamate privacy-first analytics",
+		description:
+			"Privacy-first analytics, error tracking, Core Web Vitals monitoring, feature flags, short links, uptime, and automatic investigations for developer teams.",
+		provider: { "@type": "Organization", "@id": orgId },
+		serviceType: "Web analytics software",
+		areaServed: "Worldwide",
+		url: baseUrl,
+	});
+
+	// Breadcrumbs
+	if (page.breadcrumbs?.length) {
+		graph.push({
+			"@type": "BreadcrumbList",
+			"@id": breadcrumbId,
+			itemListElement: page.breadcrumbs.map((crumb, i) => ({
+				"@type": "ListItem",
+				position: i + 1,
+				name: crumb.name,
+				item: abs(crumb.url),
+			})),
+		});
+	}
+
+	// Collect FAQ items across all elements, then emit once
+	const faqItems: FAQItem[] = [];
+
+	for (const el of elements) {
+		if (el.type === "article") {
+			const a = el.value;
+			graph.push({
+				"@type": ["BlogPosting", "Article"],
+				headline: a.title,
+				description: a.description,
+				url: pageUrl,
+				mainEntityOfPage: { "@id": webPageId },
+				isPartOf: { "@id": websiteId },
+				author: { "@type": "Organization", "@id": orgId, name: "Datamate" },
+				publisher: { "@type": "Organization", "@id": orgId },
+				image: a.imageUrl
+					? { "@type": "ImageObject", url: abs(a.imageUrl) }
+					: undefined,
+				datePublished: a.datePublished,
+				dateModified: a.dateModified || a.datePublished,
+				inLanguage: lang,
+			});
+		} else if (el.type === "documentation") {
+			const d = el.value;
+			graph.push({
+				"@type": ["TechArticle", "Article"],
+				headline: d.title,
+				description: d.description,
+				url: pageUrl,
+				mainEntityOfPage: { "@id": webPageId },
+				isPartOf: { "@id": websiteId },
+				author: {
+					"@type": "Organization",
+					"@id": orgId,
+					name: "Datamate",
+					url: baseUrl,
+				},
+				publisher: { "@type": "Organization", "@id": orgId },
+				image: d.imageUrl
+					? { "@type": "ImageObject", url: abs(d.imageUrl) }
+					: undefined,
+				datePublished: d.datePublished,
+				dateModified: d.dateModified || d.datePublished,
+				articleSection: d.section ?? "Documentation",
+				keywords: d.keywords ?? [
+					"analytics",
+					"privacy-first",
+					"web analytics",
+					"GDPR",
+					"documentation",
+				],
+				inLanguage: lang,
+			});
+		} else if (el.type === "faq") {
+			faqItems.push(...el.items);
+		} else if (el.type === "softwareApplication") {
+			const app = el.value ?? {};
+			graph.push({
+				"@type": ["SoftwareApplication", "Product"],
+				"@id": softwareId,
+				name: app.name ?? "Datamate",
+				description:
+					app.description ??
+					"Privacy-first analytics, error tracking, web vitals, feature flags, short links, and automatic investigations for developer teams.",
+				applicationCategory: "BusinessApplication",
+				operatingSystem: "Web",
+				url: baseUrl,
+				softwareVersion: app.softwareVersion,
+				featureList: app.featureList,
+				brand: { "@id": orgId },
+				publisher: { "@type": "Organization", "@id": orgId },
+				provider: { "@type": "Organization", "@id": orgId },
+				isAccessibleForFree: true,
+				sameAs: [
+					`${baseUrl}/developers`,
+					`${baseUrl}/openapi.json`,
+					`${baseUrl}/.well-known/agent.json`,
+					`${baseUrl}/.well-known/mcp/server-card.json`,
+				],
+				offers: {
+					"@type": "Offer",
+					price: "0",
+					priceCurrency: "USD",
+					url: `${baseUrl}/pricing`,
+					availability: "https://schema.org/InStock",
+				},
+			});
+		} else if (el.type === "softwareOffers") {
+			const offers = el.plans.map((p) => planToOffer(p, baseUrl));
+
+			graph.push({
+				"@type": "SoftwareApplication",
+				"@id": softwareId,
+				name: el.name ?? "Datamate",
+				applicationCategory: "BusinessApplication",
+				operatingSystem: "Web",
+				url: baseUrl,
+				publisher: { "@type": "Organization", "@id": orgId },
+				// Multiple plans → AggregateOffer
+				offers: {
+					"@type": "AggregateOffer",
+					offerCount: offers.length,
+					lowPrice: Math.min(
+						...offers.map((o) => Number(o.price ?? 0))
+					).toFixed(2),
+					highPrice: Math.max(
+						...offers.map((o) => Number(o.price ?? 0))
+					).toFixed(2),
+					priceCurrency: "USD",
+					offers,
+				},
+			});
+		}
+	}
+
+	if (faqItems.length) {
+		graph.push({
+			"@type": "FAQPage",
+			"@id": faqId,
+			mainEntity: faqItems.map((f) => ({
+				"@type": "Question",
+				name: f.question,
+				acceptedAnswer: { "@type": "Answer", text: f.answer },
+			})),
+		});
+	}
+
+	const jsonLd = {
+		"@context": "https://schema.org",
+		"@graph": graph.filter(Boolean),
+	};
+
+	return (
+		<script
+			dangerouslySetInnerHTML={{ __html: serializeJsonLd(jsonLd) }}
+			id="structured-data-page"
+			type="application/ld+json"
+		/>
+	);
+}

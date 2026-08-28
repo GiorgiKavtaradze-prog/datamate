@@ -1,0 +1,67 @@
+# Datamate Pricing
+
+Product analytics, web analytics, feature flags, and Databunny investigations. Plans include monthly events and Investigation credits, with pay-as-you-go event overage on paid plans.
+
+Machine-readable: [JSON](https://www.datamate.cc/api/pricing) · static [Markdown](https://www.datamate.cc/pricing.md) · **GET `/pricing`** with `Accept: text/markdown` (see `Vary: Accept`).
+
+## Plans
+
+| Plan | Price | Events / month (included) | Investigation credits | Notes |
+| --- | --- | --- | --- | --- |
+| Free | $0 | 10,000 | 10 / month | No paid overage — ingestion pauses at the monthly event allowance |
+| Hobby | $10/mo | 30,000 | 20 / month + 1 daily bonus | Tiered event overage |
+| Pro | $50/mo | 1,000,000 | 350 / month + 5 daily bonus | Tiered event overage |
+| Enterprise | Custom | Custom | Custom | Volume, security, SLAs — [pricing page](https://www.datamate.cc/pricing) |
+
+## Events (overage on Hobby & Pro)
+
+Overage = events **above** the monthly included amount. Cumulative overage is charged in bands (first band fills, then the next). Hobby and Pro share the same tier rates.
+
+| Cumulative overage (events) | $ / event | $ / 1,000 events |
+| --- | --- | --- |
+| 1st – 2,000,000 | $0.000035 | $0.035 |
+| 2,000,001 – 10,000,000 | $0.00003 | $0.03 |
+| 10,000,001 – 50,000,000 | $0.00002 | $0.02 |
+| 50,000,001 – 250,000,000 | $0.000015 | $0.015 |
+| 250,000,001+ | $0.00001 | $0.01 |
+
+### Example monthly totals (USD, illustrative)
+
+- **Hobby**, 500,000 events: 470,000 overage in band 1 → ~$10 + (470,000 × $0.000035) ≈ **$26.45/mo**.
+- **Pro**, 5,000,000 events: 4,000,000 overage → band 1 + band 2 → ~$50 + $70 + $60 = **$180/mo**.
+
+## Product limits
+
+| | Free | Hobby | Pro | Enterprise |
+| --- | --- | --- | --- | --- |
+| Funnels | 1 | 5 | 50 | Unlimited |
+| Goals | 2 | 10 | Unlimited | Unlimited |
+| Feature flags | 3 | 10 | 100 | Unlimited |
+| User tracking | Unlimited | Unlimited | Unlimited | Unlimited |
+| Web Vitals | ✓ | ✓ | ✓ | ✓ |
+| Geographic maps | ✓ | ✓ | ✓ | ✓ |
+| Retention | ✓ | ✓ | ✓ | ✓ |
+| Error tracking | — | ✓ | ✓ | ✓ |
+| Databunny questions and analysis | ✓ | ✓ | ✓ | ✓ |
+| Target groups | Unlimited | Unlimited | Unlimited | Unlimited |
+| Team members | Unlimited | Unlimited | Unlimited | Unlimited |
+
+## Investigation credits
+
+Every cloud plan includes Investigation credits for Databunny questions and investigations. Credits pay for the work Databunny performs, not a fixed number of messages: simple checks use fewer credits, while deeper investigations, replies, and rechecks use more. Hobby and Pro also receive a daily credit bonus that replenishes each day.
+
+## Enterprise
+
+Custom contracts for volume, compliance, onboarding, and support. Use [datamate.cc/pricing](https://www.datamate.cc/pricing) or your account contact.
+
+## Definitions
+
+- **Event:** A pageview, custom event, captured error, or Web Vital measurement counted toward monthly analytics usage. Feature flag evaluations and uptime checks do not count.
+- **Investigation credits:** Credits that pay for Databunny's work. Simple checks use fewer credits; deeper investigations, replies, and rechecks use more.
+- **Overage:** Events in a billing month above the plan’s included events.
+
+## Links
+
+- Sign up: [app.datamate.cc/register](https://app.datamate.cc/register)
+- Website: [datamate.cc/pricing](https://www.datamate.cc/pricing)
+- JSON API: [datamate.cc/api/pricing](https://www.datamate.cc/api/pricing)

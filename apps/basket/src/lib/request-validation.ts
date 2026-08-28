@@ -1,0 +1,325 @@
+import {
+	getWebsiteByIdV2,
+	isOriginAllowed,
+	isValidIpFromSettings,
+} from "@hooks/auth";
+import { checkAutumnUsage } from "@lib/billing";
+import { logBlockedTraffic } from "@lib/blocked-traffic";
+import { runFork, send } from "@lib/producer";
+import { basketErrors } from "@lib/structured-errors";
+import { record } from "@lib/tracing";
+import { extractIpFromRequest, extractTrustedClientIp } from "@utils/ip-geo";
+import { detectBot } from "@utils/user-agent";
+import {
+	sanitizeString,
+	VALIDATION_LIMITS,
+	validatePayloadSize,
+} from "@utils/validation";
+import { useLogger } from "evlog/elysia";
+
+export interface ValidatedRequest {
+	clientId: string;
+	ip: string;
+	organizationId?: string;
+	ownerId?: string;
+	userAgent: string;
+}
+
+export interface ValidateRequestOptions {
+	checkUsage?: boolean;
+}
+
+interface WebsiteSecuritySettings {
+	allowedIps?: string[];
+	allowedOrigins?: string[];
+}
+
+export function getWebsiteSecuritySettings(
+	settings: unknown
+): WebsiteSecuritySettings | null {
+	if (!settings || typeof settings !== "object" || Array.isArray(settings)) {
+		return null;
+	}
+
+	const s = settings as Record<string, unknown>;
+	return {
+		allowedOrigins: Array.isArray(s.allowedOrigins)
+			? s.allowedOrigins.filter(
+					(item): item is string => typeof item === "string"
+				)
+			: undefined,
+		allowedIps: Array.isArray(s.allowedIps)
+			? s.allowedIps.filter((item): item is string => typeof item === "string")
+			: undefined,
+	};
+}
+
+export function validateRequest(
+	body: unknown,
+	query: unknown,
+	request: Request,
+	options: ValidateRequestOptions = {}
+): Promise<ValidatedRequest> {
+	return record("validateRequest", async () => {
+		const log = useLogger();
+
+		if (!validatePayloadSize(body, VALIDATION_LIMITS.PAYLOAD_MAX_SIZE)) {
+			logBlockedTraffic(
+				request,
+				body,
+				query,
+				"payload_too_large",
+				"Validation Error"
+			);
+			log.set({ validation: { failed: true, reason: "payload_too_large" } });
+			throw basketErrors.ingestPayloadTooLarge();
+		}
+
+		const queryRecord =
+			query && typeof query === "object" && !Array.isArray(query)
+				? (query as Record<string, unknown>)
+				: {};
+
+		let clientId = sanitizeString(
+			queryRecord.client_id,
+			VALIDATION_LIMITS.SHORT_STRING_MAX_LENGTH
+		);
+
+		if (!clientId) {
+			const headerClientId = request.headers.get("datamate-client-id");
+			if (headerClientId) {
+				clientId = sanitizeString(
+					headerClientId,
+					VALIDATION_LIMITS.SHORT_STRING_MAX_LENGTH
+				);
+			}
+		}
+
+		if (!clientId) {
+			logBlockedTraffic(
+				request,
+				body,
+				query,
+				"missing_client_id",
+				"Validation Error"
+			);
+			log.set({ validation: { failed: true, reason: "missing_client_id" } });
+			throw basketErrors.ingestMissingClientId();
+		}
+
+		log.set({ clientId });
+
+		const sdkName = request.headers.get("datamate-sdk-name");
+		const sdkVersion = request.headers.get("datamate-sdk-version");
+		if (sdkName) {
+			log.set({ sdk_name: sdkName, sdk_version: sdkVersion });
+		}
+
+		const website = await record("getWebsiteByIdV2", () =>
+			getWebsiteByIdV2(clientId)
+		);
+		if (!website || website.status !== "ACTIVE") {
+			logBlockedTraffic(
+				request,
+				body,
+				query,
+				"invalid_client_id",
+				"Validation Error",
+				undefined,
+				clientId
+			);
+			log.set({
+				validation: { failed: true, reason: "invalid_client_id" },
+				website: { status: website?.status || "not_found" },
+			});
+			throw basketErrors.ingestInvalidClientId();
+		}
+
+		log.set({ website: { domain: website.domain, status: website.status } });
+
+		if (website.ownerId && options.checkUsage !== false) {
+			await checkAutumnUsage(website.ownerId, "events", {
+				website_domain: website.domain,
+				website_id: website.id,
+				website_name: website.name,
+			});
+		}
+
+		const origin = request.headers.get("origin");
+		const ip = extractIpFromRequest(request);
+
+		const securitySettings = getWebsiteSecuritySettings(website.settings);
+		const allowedOrigins = securitySettings?.allowedOrigins;
+		const allowedIps = securitySettings?.allowedIps;
+		const blockedAlertContext = {
+			organizationId: website.organizationId,
+			ownerId: website.ownerId,
+			websiteDomain: website.domain,
+			websiteName: website.name,
+		};
+
+		if (allowedOrigins?.length && !origin) {
+			logBlockedTraffic(
+				request,
+				body,
+				query,
+				"origin_missing",
+				"Security Check",
+				undefined,
+				clientId,
+				blockedAlertContext
+			);
+			log.set({
+				validation: {
+					failed: true,
+					reason: "origin_missing",
+					expectedDomain: website.domain,
+					allowedOrigins,
+				},
+			});
+			throw basketErrors.ingestOriginNotAuthorized();
+		}
+
+		if (origin && !isOriginAllowed(origin, website.domain, allowedOrigins)) {
+			logBlockedTraffic(
+				request,
+				body,
+				query,
+				"origin_not_authorized",
+				"Security Check",
+				undefined,
+				clientId,
+				blockedAlertContext
+			);
+			log.set({
+				validation: {
+					failed: true,
+					reason: "origin_not_authorized",
+					origin,
+					expectedDomain: website.domain,
+					allowedOrigins,
+				},
+			});
+			throw basketErrors.ingestOriginNotAuthorized();
+		}
+
+		if (allowedIps && allowedIps.length > 0) {
+			const trustedIp = extractTrustedClientIp(request);
+			const isAllowed =
+				trustedIp &&
+				(await record("isValidIpFromSettings", () =>
+					isValidIpFromSettings(trustedIp, allowedIps)
+				));
+
+			if (!isAllowed) {
+				logBlockedTraffic(
+					request,
+					body,
+					query,
+					"ip_not_authorized",
+					"Security Check",
+					undefined,
+					clientId,
+					blockedAlertContext
+				);
+				log.set({ validation: { failed: true, reason: "ip_not_authorized" } });
+				throw basketErrors.ingestIpNotAuthorized();
+			}
+		}
+
+		const userAgent =
+			sanitizeString(
+				request.headers.get("user-agent"),
+				VALIDATION_LIMITS.STRING_MAX_LENGTH
+			) || "";
+
+		return {
+			clientId,
+			userAgent,
+			ip,
+			ownerId: website.ownerId || undefined,
+			organizationId: website.organizationId || undefined,
+		};
+	});
+}
+
+export function checkForBot(
+	request: Request,
+	body: unknown,
+	query: unknown,
+	clientId: string,
+	userAgent: string
+): Promise<{ error?: Response } | undefined> {
+	return record("checkForBot", () => {
+		const log = useLogger();
+		const bodyRecord =
+			body && typeof body === "object" && !Array.isArray(body)
+				? (body as Record<string, unknown>)
+				: {};
+		const queryRecord =
+			query && typeof query === "object" && !Array.isArray(query)
+				? (query as Record<string, unknown>)
+				: {};
+
+		const botCheck = detectBot(userAgent, request);
+
+		if (!botCheck.isBot) {
+			return;
+		}
+
+		const { action, result } = botCheck;
+		log.set({
+			bot: { name: botCheck.botName, category: botCheck.category, action },
+		});
+
+		if (action === "allow") {
+			return;
+		}
+
+		if (action === "track_only") {
+			const path =
+				(typeof bodyRecord.path === "string" ? bodyRecord.path : undefined) ||
+				(typeof bodyRecord.url === "string" ? bodyRecord.url : undefined) ||
+				(typeof queryRecord.path === "string" ? queryRecord.path : undefined) ||
+				request.headers.get("referer") ||
+				"";
+			const referrer =
+				(typeof bodyRecord.referrer === "string"
+					? bodyRecord.referrer
+					: undefined) ||
+				request.headers.get("referer") ||
+				undefined;
+
+			runFork(
+				send("analytics-ai-traffic-spans", {
+					client_id: clientId,
+					timestamp: Date.now(),
+					bot_type: result?.category || "unknown",
+					bot_name: botCheck.botName || "unknown",
+					user_agent: userAgent,
+					path,
+					referrer,
+					action: "tracked",
+				})
+			);
+
+			return {
+				error: new Response(null, { status: 204 }),
+			};
+		}
+
+		logBlockedTraffic(
+			request,
+			body,
+			query,
+			botCheck.reason || "unknown_bot",
+			botCheck.category || "Bot Detection",
+			botCheck.botName,
+			clientId
+		);
+
+		return {
+			error: new Response(null, { status: 204 }),
+		};
+	});
+}

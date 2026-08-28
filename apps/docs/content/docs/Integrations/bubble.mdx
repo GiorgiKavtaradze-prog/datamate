@@ -1,0 +1,277 @@
+---
+title: Bubble.io
+description: Add privacy-first analytics to your Bubble.io application
+---
+
+import { Steps, Step } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { CodeBlock } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+This guide explains how to integrate Datamate with your Bubble.io application to track user behavior, page views, and custom events.
+
+## How to Add Datamate to Your Bubble App
+
+Bubble allows you to add custom code, including JavaScript snippets, to the header of your pages.
+
+<Steps>
+  <Step title="Get Your Tracking Script">
+    Navigate to your [Datamate dashboard](https://app.datamate.cc) to get your tracking code snippet. It will look like this:
+
+    <CodeBlock
+      language="html"
+      code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  async
+></script>`}
+    />
+
+    Remember to replace `YOUR_CLIENT_ID` with your actual Client ID.
+  </Step>
+
+  <Step title="Access Your Bubble App Settings">
+    - Open your Bubble application in the editor
+    - Navigate to the **Settings** tab in the left-hand sidebar
+    - Go to the **SEO / metatags** sub-tab
+  </Step>
+
+  <Step title="Add the Snippet to the Page Header">
+    - Scroll down to the section titled **"Script/meta tags in header"**
+    - Paste your Datamate tracking snippet into this box. This will add the script to the `<head>` section of every page in your Bubble app
+
+    Alternatively, some Bubble plans or configurations might offer a dedicated section for "Advanced Settings" or "Custom Code" where header scripts can be placed globally or on specific pages. The "SEO / metatags" header script section is generally the most common place for global scripts.
+  </Step>
+
+  <Step title="Deploy Your App">
+    After adding the script, ensure you deploy your Bubble application to the live version for the changes to take effect.
+  </Step>
+
+  <Step title="Verify Installation">
+    Open your live Bubble application and navigate through a few pages. Then, check your [Datamate dashboard](https://app.datamate.cc) to see if data is being received. You can also inspect your browser's network tab to confirm the script is loaded.
+  </Step>
+</Steps>
+
+<Callout type="info">
+  **Page View Tracking in Bubble Apps**: Bubble applications often behave like Single Page Applications (SPAs) for navigation between "pages" (which are often groups shown/hidden on a single actual HTML page). Datamate automatically detects URL changes in SPAs.
+
+  - If your Bubble app uses actual URL route changes for different views, Datamate should track these automatically
+  - If navigation primarily involves showing/hiding groups without URL changes, Datamate will only track the initial page load. For more granular tracking of "virtual" page views in such cases, you would need to use custom event tracking
+  - If URL changes occur but are not automatically tracked, you can trigger `window.datamate.screenView()` manually using a Bubble workflow action that runs JavaScript when a "page" (group) becomes visible
+</Callout>
+
+## Custom Event Tracking in Bubble
+
+Track custom events in Bubble by using a workflow action that runs JavaScript.
+
+<Steps>
+  <Step title="Create a Workflow">
+    In the Bubble editor, go to the **Workflow** tab.
+
+    Create a new workflow triggered by the event you want to track (e.g., "When Button A is clicked", "When a user's data changes", "When a page is loaded" and a certain condition is met).
+  </Step>
+
+  <Step title="Add Run JavaScript Action">
+    Within your workflow, add a new action.
+
+    Search for and select the **"Run JavaScript"** action (this might be provided by a free official Bubble plugin or a community plugin if not available by default; ensure you have a way to execute arbitrary JS).
+  </Step>
+
+  <Step title="Add Datamate Tracking Code">
+    In the "Run JavaScript" action's code block, add your Datamate event tracking code:
+
+    <CodeBlock
+      language="javascript"
+      code={`if (typeof window !== 'undefined' && window.datamate) {
+  window.datamate.track('bubble_event_name', {
+    // You can use Bubble's dynamic expressions here to pass data
+    // For example: 'User Email': Current User's Email,
+    // 'Clicked Element': This Button's Text (if applicable)
+    property1: 'value1',
+    property2: 'value2'
+  });
+}`}
+    />
+
+    Replace `'bubble_event_name'` with a descriptive name for your event. You can use Bubble's dynamic data expressions within the JavaScript if the "Run JavaScript" action supports it, or pass data into the JavaScript action from previous workflow steps.
+
+    **Example:** If tracking a button click for a specific item:
+
+    <CodeBlock
+      language="javascript"
+      code={`// Assuming you can pass dynamic data to the JS action
+// let itemName = "Dynamic Item Name from Bubble"; // This would be set by Bubble's dynamic data
+// let itemCategory = "Dynamic Category from Bubble";
+
+if (typeof window !== 'undefined' && window.datamate) {
+  window.datamate.track('item_interaction', {
+    name: itemName,       // Replace with actual dynamic data
+    category: itemCategory // Replace with actual dynamic data
+  });
+}`}
+    />
+  </Step>
+
+  <Step title="Test Your Event">
+    - Preview your Bubble app and trigger the workflow
+    - Check your [Datamate dashboard](https://app.datamate.cc) to see if the custom event data is being received
+  </Step>
+</Steps>
+
+## Configuration Options
+
+Enable additional tracking features by adding data attributes to your script tag:
+
+<CodeBlock
+  language="html"
+  code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-track-attributes
+  data-track-outgoing-links
+  data-track-interactions
+  data-track-web-vitals
+  data-track-errors
+  async
+></script>`}
+/>
+
+## Common Use Cases
+
+### Tracking Button Clicks
+
+Track when users click specific buttons:
+
+<CodeBlock
+  language="javascript"
+  code={`// In Bubble's Run JavaScript action
+if (typeof window !== 'undefined' && window.datamate) {
+  window.datamate.track('button_click', {
+    button_id: 'cta-button',
+    button_text: 'Get Started',
+    page_path: window.location.pathname
+  });
+}`}
+/>
+
+### Tracking Form Submissions
+
+Track form submissions:
+
+<CodeBlock
+  language="javascript"
+  code={`// In Bubble's Run JavaScript action (triggered on form submit)
+if (typeof window !== 'undefined' && window.datamate) {
+  window.datamate.track('form_submit', {
+    form_type: 'contact',
+    form_id: 'contact-form',
+    page_path: window.location.pathname
+  });
+}`}
+/>
+
+### Tracking Virtual Page Views
+
+Track "virtual" page views when groups are shown/hidden:
+
+<CodeBlock
+  language="javascript"
+  code={`// In Bubble's Run JavaScript action (triggered when a group/page becomes visible)
+if (typeof window !== 'undefined' && window.datamate) {
+  window.datamate.screenView({
+    screen_name: 'dashboard',
+    screen_class: 'Bubble',
+    path: window.location.pathname
+  });
+}`}
+/>
+
+### Tracking User Actions
+
+Track user interactions with dynamic data:
+
+<CodeBlock
+  language="javascript"
+  code={`// Example: Track when a user views a product
+// Pass dynamic data from Bubble workflow
+if (typeof window !== 'undefined' && window.datamate) {
+  window.datamate.track('product_view', {
+    product_id: productId,        // From Bubble's dynamic data
+    product_name: productName,     // From Bubble's dynamic data
+    product_price: productPrice,   // From Bubble's dynamic data
+    user_id: currentUser.id        // From Bubble's Current User
+  });
+}`}
+/>
+
+## Using Data Attributes
+
+Enable automatic tracking with data attributes by adding `data-track-attributes` to your script tag. Then add `data-track` attributes directly to elements in your Bubble app:
+
+<CodeBlock
+  language="html"
+  code={`<!-- Enable data-track attributes in script tag -->
+<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-track-attributes
+  async
+></script>
+
+<!-- Then use in your Bubble app elements -->
+<button data-track="cta_click" data-button-type="primary">
+  Get Started
+</button>
+
+<a href="/pricing" data-track="pricing_link_click" data-link-location="header">
+  View Pricing
+</a>`}
+/>
+
+## Troubleshooting
+
+### Script Not Loading
+
+- Verify the script is in the **"Script/meta tags in header"** section
+- Check browser console for errors
+- Ensure your Client ID is correct
+- Deploy your Bubble app to see changes take effect
+- Clear browser cache and reload
+
+### Events Not Tracking
+
+- Confirm `window.datamate` exists before calling tracking methods
+- Always check `typeof window !== 'undefined'` for safety
+- Check browser console for any errors
+- Verify events appear in your Datamate dashboard after 2-3 minutes
+- Use browser dev tools Network tab to confirm requests are being sent
+
+### Virtual Page Views Not Tracked
+
+- Bubble apps often use show/hide groups instead of URL changes
+- Use `window.datamate.screenView()` manually when groups become visible
+- Create workflows that trigger on group visibility changes
+- Track these as custom events if automatic tracking doesn't work
+
+### Dynamic Data Not Passing
+
+- Ensure Bubble's "Run JavaScript" action supports dynamic data
+- Check that variables are properly scoped and accessible
+- Test with hardcoded values first, then add dynamic data
+- Verify data types match what Datamate expects (strings, numbers, etc.)
+
+## Related Integrations
+
+<Cards>
+  <Card title="Framer" href="/docs/Integrations/framer">
+    No-code integration for Framer websites.
+  </Card>
+  <Card title="Webflow" href="/docs/Integrations/webflow">
+    Visual builder integration for Webflow sites.
+  </Card>
+  <Card title="Wix" href="/docs/Integrations/wix">
+    Simple setup for Wix websites.
+  </Card>
+</Cards>
+
+Need help with your Bubble.io integration? Contact us at [support@datamate.cc](mailto:support@datamate.cc).

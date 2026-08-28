@@ -1,0 +1,94 @@
+---
+title: Toast Tracking
+description: Track toast notifications to understand user feedback patterns and error rates
+---
+
+import { CodeBlock } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+Track toast notifications automatically to understand user feedback patterns, error rates, and success message frequency.
+
+## Implementation
+
+<CodeBlock 
+  language="tsx"
+  code={`import { track } from "@datamate/sdk";
+import { useEffect, useRef } from "react";
+import { useSonner } from "sonner";
+
+export function useToastTracking() {
+  const { toasts } = useSonner();
+  const tracked = useRef(new Set<string | number>());
+
+  useEffect(() => {
+    for (const toast of toasts) {
+      if (!tracked.current.has(toast.id)) {
+        tracked.current.add(toast.id);
+        track("toast_shown", {
+          type: toast.type, // success, error, warning, info
+          message: toast.title,
+        });
+      }
+    }
+  }, [toasts]);
+}`}
+/>
+
+## Usage
+
+Add the hook to your app providers or root component:
+
+<CodeBlock 
+  language="tsx"
+  code={`// app/providers.tsx
+import { useToastTracking } from "@/hooks/toast-hooks";
+
+function ToastTracker({ children }: { children: React.ReactNode }) {
+  useToastTracking();
+  return <>{children}</>;
+}
+
+export default function Providers({ children }: { children: React.ReactNode }) {
+  return (
+    <QueryClientProvider>
+      <ToastTracker>
+        {children}
+      </ToastTracker>
+    </QueryClientProvider>
+  );
+}`}
+/>
+
+## What It Tracks
+
+- **Event**: `toast_shown`
+- **Properties**:
+  - `type`: Toast type (success, error, warning, info)
+  - `message`: Toast title/message
+- **Deduplication**: Prevents duplicate tracking using a Set of toast IDs
+
+## Benefits
+
+- **Error Monitoring**: Track error toast frequency to identify problematic areas
+- **User Feedback**: Understand which success messages users see most
+- **Pattern Analysis**: Analyze toast patterns across different user flows
+
+<Callout type="info">
+This hook automatically tracks all toast notifications without requiring manual tracking calls in your components.
+</Callout>
+
+## Related
+
+<Cards>
+  <Card title="Form Tracking" href="/docs/hooks/form-tracking">
+    Track form submissions with validation state
+  </Card>
+  <Card title="Modal Tracking" href="/docs/hooks/modal-tracking">
+    Track when modals are opened and closed
+  </Card>
+  <Card title="Hooks Overview" href="/docs/hooks">
+    View all available tracking hooks
+  </Card>
+</Cards>
+

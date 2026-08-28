@@ -1,0 +1,80 @@
+import type { CellContext, ColumnDef } from "@tanstack/react-table";
+import { formatNumber } from "@/lib/formatters";
+import { TranslateIcon } from "@datamate/ui/icons";
+import { PercentageBadge } from "@datamate/ui";
+
+export interface LanguageEntry {
+	code?: string;
+	name: string;
+	pageviews: number;
+	percentage: number;
+	visitors: number;
+}
+
+export function createLanguageColumns(
+	displayNames?: Intl.DisplayNames | null
+): ColumnDef<LanguageEntry>[] {
+	// Use provided displayNames or create fallback
+	const effectiveDisplayNames =
+		displayNames ||
+		(typeof window === "undefined"
+			? null
+			: new Intl.DisplayNames([navigator.language || "en"], {
+					type: "language",
+				}));
+
+	return [
+		{
+			id: "name",
+			accessorKey: "name",
+			header: "Language",
+			cell: (info: CellContext<LanguageEntry, any>) => {
+				const entry = info.row.original;
+				const language = entry.name;
+				const code = entry.code;
+				let readableName = language;
+				try {
+					readableName = effectiveDisplayNames?.of(language) || language;
+				} catch {
+					readableName = language;
+				}
+				return (
+					<div className="flex items-center gap-2">
+						<TranslateIcon className="size-[18px] text-primary" />
+						<div>
+							<div className="font-medium">{readableName}</div>
+							{code && code !== language && (
+								<div className="text-muted-foreground text-xs">{code}</div>
+							)}
+						</div>
+					</div>
+				);
+			},
+		},
+		{
+			id: "visitors",
+			accessorKey: "visitors",
+			header: "Visitors",
+			cell: (info: CellContext<LanguageEntry, any>) => (
+				<span className="font-medium">{formatNumber(info.getValue())}</span>
+			),
+		},
+		{
+			id: "pageviews",
+			accessorKey: "pageviews",
+			header: "Pageviews",
+			cell: (info: CellContext<LanguageEntry, any>) => (
+				<span className="font-medium">{formatNumber(info.getValue())}</span>
+			),
+		},
+		{
+			id: "percentage",
+			accessorKey: "percentage",
+			header: "Share",
+			cell: (info: CellContext<LanguageEntry, any>) => {
+				const percentage = info.getValue() as number;
+				return <PercentageBadge percentage={percentage} />;
+			},
+		},
+	];
+}

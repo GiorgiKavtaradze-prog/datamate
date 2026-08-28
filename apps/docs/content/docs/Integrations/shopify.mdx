@@ -1,0 +1,411 @@
+---
+title: Shopify
+description: Add privacy-first analytics to your Shopify store
+---
+
+import { Card, Cards } from "@/components/docs";
+
+Add Datamate's privacy-first analytics to your Shopify store to track customer behavior, e-commerce events, and improve conversion rates while maintaining GDPR compliance.
+
+## Installation Methods
+
+### Method 1: Theme Code (Recommended)
+
+Add Datamate directly to your Shopify theme:
+
+1. Go to **Online Store** > **Themes**
+2. Click **Actions** > **Edit code** on your active theme
+3. Open `theme.liquid` in the Layout folder
+4. Add your Datamate script before the closing `</head>` tag:
+
+```html
+<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-track-attributes
+  data-track-outgoing-links
+  async
+></script>
+```
+
+### Method 2: Google Tag Manager
+
+If you're using Google Tag Manager:
+
+1. In GTM, create a new **Custom HTML** tag
+2. Add the Datamate script:
+
+```html
+<script>
+  (function() {
+    var script = document.createElement('script');
+    script.src = 'https://cdn.datamate.cc/datamate.js';
+    script.setAttribute('data-client-id', 'YOUR_CLIENT_ID');
+    script.setAttribute('data-track-attributes', 'true');
+    script.async = true;
+    document.head.appendChild(script);
+  })();
+</script>
+```
+
+3. Set trigger to **All Pages**
+4. Publish the container
+
+## E-commerce Tracking
+
+### Track Product Views
+
+Add to your `product.liquid` template:
+
+```html
+<script>
+  window.addEventListener('load', function() {
+    if (window.datamate) {
+      datamate.track('product_view', {
+        product_id: '{{ product.id }}',
+        product_name: '{{ product.title | escape }}',
+        product_category: '{{ product.type | escape }}',
+        product_vendor: '{{ product.vendor | escape }}',
+        product_price: {{ product.price | divided_by: 100.0 }},
+        currency: '{{ cart.currency.iso_code }}',
+        product_variant: '{{ product.selected_or_first_available_variant.title | escape }}'
+      });
+    }
+  });
+</script>
+```
+
+### Track Add to Cart
+
+Add to your product form or use data attributes:
+
+```html
+<!-- Method 1: Data attributes (automatic) -->
+<button 
+  type="submit" 
+  name="add" 
+  class="btn product-form__cart-submit"
+  data-track="add_to_cart"
+  data-product-id="{{ product.id }}"
+  data-product-name="{{ product.title | escape }}"
+  data-value="{{ product.price | divided_by: 100.0 }}"
+  data-currency="{{ cart.currency.iso_code }}"
+>
+  Add to Cart
+</button>
+
+<!-- Method 2: Custom JavaScript -->
+<script>
+  document.querySelector('.product-form__cart-submit').addEventListener('click', function() {
+    if (window.datamate) {
+      datamate.track('add_to_cart', {
+        product_id: '{{ product.id }}',
+        product_name: '{{ product.title | escape }}',
+        value: {{ product.price | divided_by: 100.0 }},
+        currency: '{{ cart.currency.iso_code }}',
+        quantity: 1
+      });
+    }
+  });
+</script>
+```
+
+### Track Purchases
+
+Add to your `thank-you.liquid` or checkout success page:
+
+```html
+{% if first_time_accessed %}
+<script>
+  window.addEventListener('load', function() {
+    if (window.datamate) {
+      datamate.track('purchase', {
+        transaction_id: '{{ order.order_number }}',
+        value: {{ order.total_price | divided_by: 100.0 }},
+        currency: '{{ order.currency }}',
+        tax: {{ order.tax_price | divided_by: 100.0 }},
+        shipping: {{ order.shipping_price | divided_by: 100.0 }},
+        coupon: '{{ order.discount_codes.first.code }}',
+        items: [
+          {% for line_item in order.line_items %}
+          {
+            item_id: '{{ line_item.product_id }}',
+            item_name: '{{ line_item.title | escape }}',
+            item_category: '{{ line_item.product.type | escape }}',
+            item_variant: '{{ line_item.variant.title | escape }}',
+            quantity: {{ line_item.quantity }},
+            price: {{ line_item.price | divided_by: 100.0 }}
+          }{% unless forloop.last %},{% endunless %}
+          {% endfor %}
+        ]
+      });
+    }
+  });
+</script>
+{% endif %}
+```
+
+## Customer Behavior Tracking
+
+### Track Search Events
+
+Add to your `search.liquid` template:
+
+```html
+{% if search.performed %}
+<script>
+  window.addEventListener('load', function() {
+    if (window.datamate) {
+      datamate.track('search', {
+        search_term: '{{ search.terms | escape }}',
+        results_count: {{ search.results.size }},
+        page: 'search'
+      });
+    }
+  });
+</script>
+{% endif %}
+```
+
+### Track Collection Views
+
+Add to your `collection.liquid` template:
+
+```html
+<script>
+  window.addEventListener('load', function() {
+    if (window.datamate) {
+      datamate.track('collection_view', {
+        collection_id: '{{ collection.id }}',
+        collection_name: '{{ collection.title | escape }}',
+        collection_handle: '{{ collection.handle }}',
+        products_count: {{ collection.products.size }}
+      });
+    }
+  });
+</script>
+```
+
+### Track Newsletter Signups
+
+For newsletter forms:
+
+```html
+<form 
+  action="/contact#contact_form" 
+  method="post" 
+  class="newsletter-form"
+  data-track="newsletter_signup"
+  data-form-location="footer"
+>
+  <input type="email" name="contact[email]" placeholder="Your email">
+  <button type="submit">Subscribe</button>
+</form>
+```
+
+## Advanced Configuration
+
+### Customer Identification
+
+Track logged-in customers:
+
+```html
+{% if customer %}
+<script>
+  window.addEventListener('load', function() {
+    if (window.datamate) {
+      datamate.identify('{{ customer.id }}', {
+        email: '{{ customer.email | escape }}',
+        first_name: '{{ customer.first_name | escape }}',
+        last_name: '{{ customer.last_name | escape }}',
+        customer_since: '{{ customer.created_at | date: "%Y-%m-%d" }}',
+        total_orders: {{ customer.orders_count }},
+        total_spent: {{ customer.total_spent | divided_by: 100.0 }}
+      });
+    }
+  });
+</script>
+{% endif %}
+```
+
+### Cart Abandonment Tracking
+
+Track when users add items but don't complete purchase:
+
+```html
+<script>
+  // Track cart updates
+  document.addEventListener('cart:updated', function(event) {
+    if (window.datamate && event.detail.cart.item_count > 0) {
+      datamate.track('cart_updated', {
+        cart_value: event.detail.cart.total_price / 100,
+        item_count: event.detail.cart.item_count,
+        currency: '{{ cart.currency.iso_code }}'
+      });
+    }
+  });
+</script>
+```
+
+## Shopify Plus Features
+
+### Checkout Extensions
+
+For Shopify Plus stores using checkout extensions:
+
+```javascript
+// In your checkout extension
+import { extension, Banner } from '@shopify/ui-extensions/checkout';
+
+extension('purchase.checkout.block.render', (root, api) => {
+  const { analytics } = api;
+  
+  // Track checkout steps
+  analytics.track('checkout_step', {
+    step: 'information',
+    checkout_id: api.checkoutToken
+  });
+});
+```
+
+### Flow Integration
+
+Use Shopify Flow to trigger Datamate events:
+
+1. Create a new Flow in Shopify admin
+2. Set trigger (e.g., "Order created")
+3. Add HTTP request action:
+   - URL: `https://basket.datamate.cc/track`
+   - Method: POST
+   - Headers: `Authorization: Bearer YOUR_API_KEY` and `Content-Type: application/json`
+   - Body: JSON with `name`, `websiteId`, `properties`, and `source`
+
+```json
+{
+  "name": "order_created",
+  "websiteId": "your-client-id",
+  "properties": {
+    "order_id": "{{ order.id }}",
+    "status": "{{ order.displayFinancialStatus }}"
+  },
+  "source": "shopify_flow"
+}
+```
+
+## Performance Optimization
+
+### Lazy Loading
+
+Load Datamate after critical resources:
+
+```html
+<script>
+  window.addEventListener('load', function() {
+    // Load Datamate after page is fully loaded
+    var script = document.createElement('script');
+    script.src = 'https://cdn.datamate.cc/datamate.js';
+    script.setAttribute('data-client-id', 'YOUR_CLIENT_ID');
+    script.async = true;
+    document.head.appendChild(script);
+  });
+</script>
+```
+
+### Mobile Optimization
+
+Optimize for mobile users:
+
+```html
+<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-track-attributes
+  data-sampling-rate="0.1"
+  async
+></script>
+```
+
+## Compliance and Privacy
+
+### GDPR Compliance
+
+Datamate is GDPR compliant by default, but you can add additional privacy controls:
+
+```html
+<!-- Show only for EU users -->
+{% if localization.country.iso_code == 'EU' %}
+<script>
+  // Initialize Datamate with privacy mode
+  window.datamateConfig = {
+    privacy_mode: true,
+    minimal_tracking: true
+  };
+</script>
+{% endif %}
+```
+
+### Cookie Consent Integration
+
+If using a cookie consent banner:
+
+```javascript
+// Wait for consent before tracking
+function initializeDatamate() {
+  var script = document.createElement('script');
+  script.src = 'https://cdn.datamate.cc/datamate.js';
+  script.setAttribute('data-client-id', 'YOUR_CLIENT_ID');
+  script.async = true;
+  document.head.appendChild(script);
+}
+
+// Call after user accepts cookies
+document.addEventListener('cookieConsentAccepted', initializeDatamate);
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Script Not Loading**: Check if your theme has Content Security Policy restrictions.
+
+**Events Not Tracking**: Verify that your Client ID is correct and the script is loading without errors.
+
+**Liquid Syntax Errors**: Ensure all Liquid variables are properly escaped and quoted.
+
+### Testing
+
+Test your implementation:
+
+1. Use Shopify's preview theme feature
+2. Check browser console for any JavaScript errors
+3. Verify events in your Datamate dashboard
+4. Test on mobile devices
+
+### Debug Mode
+
+Enable debug mode for development:
+
+```html
+<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-debug
+  async
+></script>
+```
+
+## Related Integrations
+
+<Cards>
+  <Card title="Next.js" href="/docs/Integrations/nextjs">
+    App Router and Pages Router setup for Next.js apps.
+  </Card>
+  <Card title="Google Tag Manager" href="/docs/Integrations/gtm">
+    GTM integration for managing multiple marketing tools.
+  </Card>
+  <Card title="WordPress" href="/docs/Integrations/wordpress">
+    Plugin or manual setup for WordPress sites.
+  </Card>
+</Cards>
+
+Need help with your Shopify integration? Contact us at [support@datamate.cc](mailto:support@datamate.cc).

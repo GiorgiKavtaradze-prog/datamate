@@ -1,0 +1,15 @@
+{
+  "title": "API Reference",
+  "description": "Complete REST API documentation for Datamate",
+  "icon": "Code",
+  "pages": [
+    "index",
+    "authentication",
+    "mcp",
+    "query",
+    "events",
+    "links",
+    "errors",
+    "rate-limits"
+  ]
+}

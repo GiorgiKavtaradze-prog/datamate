@@ -1,0 +1,67 @@
+import { expect, test } from "./test-utils";
+
+test.describe("Persistence", () => {
+
+	test("persists anonymousId across reloads", async ({ page }) => {
+		await page.goto("/test");
+		await page.evaluate(() => {
+			(window as any).datamateConfig = {
+				clientId: "test-persist",
+				ignoreBotDetection: true,
+				batchTimeout: 200,
+			};
+		});
+		await page.addScriptTag({ url: "/dist/datamate-debug.js" });
+
+		// Get first ID
+		const id1 = await page.evaluate(() => localStorage.getItem("did"));
+		expect(id1).toBeTruthy();
+
+		// Reload
+		await page.reload();
+		await page.evaluate(() => {
+			(window as any).datamateConfig = {
+				clientId: "test-persist",
+				ignoreBotDetection: true,
+				batchTimeout: 200,
+			};
+		});
+		await page.addScriptTag({ url: "/dist/datamate-debug.js" });
+
+		// Get second ID
+		const id2 = await page.evaluate(() => localStorage.getItem("did"));
+		expect(id2).toBe(id1);
+	});
+
+	test("persists sessionId across reloads", async ({ page }) => {
+		await page.goto("/test");
+		await page.evaluate(() => {
+			(window as any).datamateConfig = {
+				clientId: "test-persist",
+				ignoreBotDetection: true,
+				batchTimeout: 200,
+			};
+		});
+		await page.addScriptTag({ url: "/dist/datamate-debug.js" });
+
+		const sess1 = await page.evaluate(() =>
+			sessionStorage.getItem("did_session")
+		);
+		expect(sess1).toBeTruthy();
+
+		await page.reload();
+		await page.evaluate(() => {
+			(window as any).datamateConfig = {
+				clientId: "test-persist",
+				ignoreBotDetection: true,
+				batchTimeout: 200,
+			};
+		});
+		await page.addScriptTag({ url: "/dist/datamate-debug.js" });
+
+		const sess2 = await page.evaluate(() =>
+			sessionStorage.getItem("did_session")
+		);
+		expect(sess2).toBe(sess1);
+	});
+});

@@ -1,0 +1,85 @@
+services:
+  redpanda:
+    image: redpandadata/redpanda:v25.2.9
+    container_name: redpanda
+    restart: unless-stopped
+    ports:
+      - "19092:19092"
+      - "9644:9644"
+    volumes:
+      - redpanda_data:/var/lib/redpanda/data
+      - ./init-redpanda.sh:/init-redpanda.sh:ro
+      - ./redpanda.yaml:/etc/redpanda/redpanda.yaml.template:ro
+    environment:
+      REDPANDA_LOG_LEVEL: ${REDPANDA_LOG_LEVEL}
+      REDPANDA_ADVERTISED_HOST: ${REDPANDA_ADVERTISED_HOST}
+      REDPANDA_USER: ${REDPANDA_USER}
+      REDPANDA_PASSWORD: ${REDPANDA_PASSWORD}
+      VECTOR_KAFKA_USER: ${VECTOR_KAFKA_USER}
+      VECTOR_KAFKA_PASSWORD: ${VECTOR_KAFKA_PASSWORD}
+    entrypoint: [ "/bin/bash", "-c" ]
+    command:
+      - |
+        if [ -z "$$REDPANDA_ADVERTISED_HOST" ]; then
+          REDPANDA_ADVERTISED_HOST=$$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || hostname -i)
+        fi
+        echo "Cleaning up crash loop state if present..."
+        rm -f /var/lib/redpanda/data/startup_log
+        echo "Copying config file to writable location..."
+        cp /etc/redpanda/redpanda.yaml.template /etc/redpanda/redpanda.yaml
+        echo "Advertising Kafka at: $$REDPANDA_ADVERTISED_HOST:19092"
+        /entrypoint.sh redpanda start \
+          --kafka-addr internal://0.0.0.0:9092,external://0.0.0.0:19092 \
+          --advertise-kafka-addr internal://redpanda:9092,external://$$REDPANDA_ADVERTISED_HOST:19092 \
+          --pandaproxy-addr internal://0.0.0.0:8082 \
+          --advertise-pandaproxy-addr internal://redpanda:8082 \
+          --rpc-addr redpanda:33145 \
+          --advertise-rpc-addr redpanda:33145 \
+          --default-log-level=$${REDPANDA_LOG_LEVEL:-warn} &
+        REDPANDA_PID=$$!
+        echo "Waiting for Redpanda to be ready..."
+        MAX_RETRIES=30
+        RETRY_COUNT=0
+        while [ $$RETRY_COUNT -lt $$MAX_RETRIES ]; do
+          # Try without SASL first (SASL may not be enabled yet)
+          if rpk cluster health >/dev/null 2>&1; then
+            echo "Redpanda is ready!"
+            break
+          fi
+          # If that fails, try with SASL (in case it was already enabled)
+          if rpk cluster health -X user="$$REDPANDA_USER" -X pass="$$REDPANDA_PASSWORD" -X sasl.mechanism=SCRAM-SHA-256 >/dev/null 2>&1; then
+            echo "Redpanda is ready!"
+            break
+          fi
+          RETRY_COUNT=$$((RETRY_COUNT + 1))
+          echo "Waiting for Redpanda... ($$RETRY_COUNT/$$MAX_RETRIES)"
+          sleep 2
+        done
+        if [ $$RETRY_COUNT -eq $$MAX_RETRIES ]; then
+          echo "ERROR: Redpanda did not become ready in time"
+          kill $$REDPANDA_PID 2>/dev/null || true
+          exit 1
+        fi
+        echo "Initializing Redpanda users and ACLs..."
+        /bin/bash /init-redpanda.sh || echo "Warning: Initialization script failed, but continuing..."
+        wait $$REDPANDA_PID
+    networks:
+      - datamate
+    healthcheck:
+      test: [ "CMD-SHELL", 'rpk cluster health -X user="$$REDPANDA_USER" -X pass="$$REDPANDA_PASSWORD" -X sasl.mechanism=SCRAM-SHA-256 | grep -q ''Healthy:.*true'' && rpk topic list -X user="$$REDPANDA_USER" -X pass="$$REDPANDA_PASSWORD" -X sasl.mechanism=SCRAM-SHA-256' ]
+      interval: 10s
+      timeout: 10s
+      retries: 10
+      start_period: 60s
+
+volumes:
+  redpanda_data:
+
+
+networks:
+  datamate:
+    name: datamate
+    driver: bridge
+  datamate-network:
+    name: datamate-network
+    driver: bridge

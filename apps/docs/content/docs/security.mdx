@@ -1,0 +1,453 @@
+---
+title: Security & Privacy
+description: How Datamate protects your data and respects user privacy
+---
+
+import { CodeBlock } from "@/components/docs";
+
+Datamate is built with privacy-first principles and enterprise-grade security. This guide covers what we do to protect your data and how to configure privacy settings for your users.
+
+## Privacy-First Design
+
+### What We Don't Collect
+
+- **No Personal Information** - Names, emails, phone numbers, addresses
+- **No Cookies for Tracking** - Only local storage for anonymous IDs
+- **No Cross-Site Tracking** - Each site is isolated
+- **No Fingerprinting** - Respects browser privacy settings
+- **No Raw IP Addresses** - Only used for location (country/region) then discarded
+
+### What We Do Collect
+
+- **Anonymous Usage Data** - Page views, clicks, performance metrics
+- **Session Information** - Anonymous session IDs with 30-minute timeouts
+- **Technical Data** - Browser type, screen size, performance metrics
+- **Location Data** - Country and region only (from IP, then IP discarded)
+
+## Data Protection
+
+### Anonymous by Default
+
+<CodeBlock 
+  language="javascript"
+  code={`// All users get anonymous IDs - no personal data
+  {
+    anonymousId: "anon_abc123...",      // Random UUID
+    sessionId: "sess_xyz789...",        // Session identifier
+    event: "page_view",                 // What happened
+    path: "/dashboard",                 // Where it happened
+    // No names, emails, or personal data
+  }`}
+/>
+
+### Local Data Storage
+
+- **Anonymous ID** - Stored in localStorage, never sent to servers
+- **Session Data** - Temporary sessionStorage, clears on browser close
+- **No Cookies** - We don't use tracking cookies
+- **User Control** - Easy to clear all data
+
+## Privacy Compliance
+
+### GDPR Compliance by Design
+
+**Lawful Basis:** Legitimate interest for website analytics
+
+Datamate is **compliant by default** - no consent banners or cookie notices required because:
+
+- **No Personal Data Collected** - Only anonymous usage statistics
+- **No Cookies Used** - Uses localStorage for anonymous IDs only
+- **No User Identification** - Cannot identify individual users
+- **Automatic Data Anonymization** - All data is anonymous from collection
+
+### No Consent Required
+
+<CodeBlock 
+  language="tsx"
+  code={`import { Datamate } from "@datamate/sdk/react";
+
+  function App() {
+    return (
+      <>
+        {/* No consent needed - privacy-first by design */}
+        <Datamate
+          clientId="your-client-id"
+          trackWebVitals
+        />
+
+        {/* No cookie banner needed! */}
+      </>
+    );
+  }`}
+/>
+
+**Why No Consent Needed:**
+
+- Anonymous data only
+- No cross-site tracking
+- No personal information
+- No behavioral profiling
+- Legitimate interest applies
+
+## Privacy Controls
+
+### Minimal Tracking Setup
+
+<CodeBlock 
+  language="tsx"
+  filename="Minimal Tracking Setup"
+  code={`// Essential analytics only
+  <Datamate
+    clientId="your-client-id"
+    // Basic page tracking (automatic)
+    // Disable everything else
+    trackWebVitals={false}
+    trackOutgoingLinks={false}
+    trackErrors={false}
+  />`}
+/>
+
+### Development vs Production
+
+<CodeBlock 
+  language="tsx"
+  filename="Environment Configuration"
+  code={`const isProd = process.env.NODE_ENV === "production";
+
+  <Datamate
+    clientId="your-client-id"
+    disabled={!isProd} // No tracking in development
+    // Production-only features
+    trackWebVitals={isProd}
+  />;`}
+/>
+
+## 🔐 Security Features
+
+### Domain Protection
+
+- **Domain Verification Required** - Only verified domains can send data
+- **Origin Validation** - Requests validated against registered domains
+- **HTTPS Required** - All communications encrypted in transit
+
+### Access Control Settings
+
+Configure allowed origins and IP addresses to control who can send analytics data to your website.
+
+#### Allowed Origins
+
+By default, Datamate only accepts requests from your website's registered domain. To track analytics from third-party services (like [Cal.com](/docs/Integrations/cal), embedded widgets, or other integrations), you need to add those domains to your allowed origins.
+
+**Access**: Open [Websites](https://app.datamate.cc/websites), select your site, then go to **Settings → Security**.
+
+**Default Behavior:**
+
+- Only requests from your registered domain are accepted
+- Requests from other origins are blocked with a 403 error
+
+**Supported Formats:**
+
+- **Exact domains**: `cal.com`, `example.com`
+- **Wildcard subdomains**: `*.cal.com` (matches `app.cal.com`, `api.cal.com`, etc.)
+- **Localhost**: `localhost` (for development)
+- **Allow all**: `*` (allows any origin - use with caution)
+
+**How It Works:**
+
+1. By default, only your registered domain can send analytics data
+2. Add additional origins to allow third-party integrations
+3. Requests from unauthorized origins are blocked with a 403 error
+
+**Example Configuration:**
+
+```
+Allowed Origins:
+- cal.com
+- *.cal.com
+- localhost
+```
+
+#### Allowed IP Addresses
+
+Restrict analytics requests to specific IP addresses or IP ranges using CIDR notation.
+
+**Supported Formats:**
+
+- **Single IPv4**: `192.168.1.1`
+- **Single IPv6**: `2001:0db8:85a3:0000:0000:8a2e:0370:7334`
+- **CIDR ranges**: `192.168.1.0/24`, `10.0.0.0/8`
+
+**How It Works:**
+
+1. When `allowedIps` is configured, only requests from those IPs/ranges are accepted
+2. If not configured, all IPs are allowed (standard behavior)
+3. IP addresses are extracted from request headers (`cf-connecting-ip`, `x-forwarded-for`, `x-real-ip`)
+4. Requests from unauthorized IPs are blocked with a 403 error
+
+**Example Configuration:**
+
+```
+Allowed IPs:
+- 192.168.1.1
+- 10.0.0.0/8
+- 172.16.0.0/12
+```
+
+**Use Cases:**
+
+- **Internal Tools**: Restrict analytics to your office IP range
+- **API Integrations**: Allow only specific server IPs
+- **Development**: Limit to your development environment IPs
+- **Security**: Block suspicious IP ranges
+
+<Callout type="warning">
+  **Important**: If you configure allowed IPs, make sure to include your production servers and any legitimate sources. Blocking legitimate traffic will prevent analytics collection.
+</Callout>
+
+<Callout type="info">
+  **Third-Party Integrations**: If you use services like Cal.com, embedded widgets, or other integrations that need to send analytics from their domains, add those domains to your allowed origins.
+</Callout>
+
+### Data Validation
+
+- **Input Sanitization** - All user data cleaned and validated
+- **Size Limits** - Prevents large payloads and spam
+- **Rate Limiting** - Protects against abuse
+
+### Infrastructure Security
+
+- **Enterprise-Grade Hosting** - SOC 2 compliant infrastructure
+- **DDoS Protection** - Automatic attack mitigation
+- **Regular Security Audits** - Professional penetration testing
+- **Encrypted Storage** - All data encrypted at rest
+
+## 🛠️ User Privacy Controls (Optional)
+
+### Anonymous Data Only
+
+Since Datamate only collects anonymous data, users don't need to request data deletion - there's no personal data to delete! However, you can still provide opt-out controls if desired.
+
+### Optional Opt-Out Implementation
+
+<CodeBlock 
+  language="tsx"
+  filename="Optional Opt-Out Component"
+  code={`function PrivacyControls() {
+    const [trackingEnabled, setTrackingEnabled] = useState(true);
+
+    const handleOptOut = () => {
+      // Clear local anonymous ID
+      localStorage.removeItem("datamate_anon_id");
+
+      // Disable tracking
+      setTrackingEnabled(false);
+
+      // Store preference
+      localStorage.setItem("datamate_opt_out", "true");
+    };
+
+    return (
+      <div>
+        <p>
+          Analytics helps us improve our website. No personal data is collected.
+        </p>
+
+        <label>
+          <input
+            type="checkbox"
+            checked={trackingEnabled}
+            onChange={(e) => setTrackingEnabled(e.target.checked)}
+          />
+          Enable anonymous analytics
+        </label>
+
+        <button onClick={handleOptOut}>Disable analytics</button>
+      </div>
+    );
+  }`}
+/>
+
+### Why Data Deletion Isn't Needed
+
+- **No Personal Data** - Nothing to identify individual users
+- **Anonymous by Design** - All data is aggregated and anonymous
+- **No User Profiles** - Cannot build profiles of individual users
+- **Automatic Expiry** - Data expires automatically over time
+
+## 🌐 Global Privacy Settings
+
+### Respect Browser Preferences
+
+<CodeBlock 
+  language="javascript"
+  filename="Respect Browser Privacy Settings"
+  code={`// Check Do Not Track setting
+  const respectDNT = navigator.doNotTrack === "1";
+
+  <Datamate
+    clientId="your-client-id"
+    disabled={respectDNT} // Respect browser privacy setting
+  />;`}
+/>
+
+## 📋 Privacy Best Practices
+
+### 1. Be Transparent
+
+<CodeBlock 
+  language="tsx"
+  filename="Privacy Notice Component"
+  code={`// Clear privacy notice
+  function PrivacyNotice() {
+    return (
+      <div className="privacy-notice">
+        <h3>We respect your privacy</h3>
+        <p>
+          We collect anonymous usage data to improve our website. No personal
+          information is collected. You can opt out anytime.
+        </p>
+        <a href="/privacy-policy">Read our privacy policy</a>
+      </div>
+    );
+  }`}
+/>
+
+### 2. Provide Controls (Optional)
+
+<CodeBlock 
+  language="tsx"
+  filename="Privacy Dashboard Component"
+  code={`// Optional privacy dashboard (not required since data is anonymous)
+  function PrivacyDashboard() {
+    return (
+      <div>
+        <h2>Analytics Preferences</h2>
+
+        <div>
+          <h3>Anonymous Data Collection</h3>
+          <p>Help us improve our website with anonymous usage statistics.</p>
+          <Toggle label="Page views" />
+          <Toggle label="Performance metrics" />
+          <Toggle label="Error tracking" />
+        </div>
+
+        <div>
+          <h3>Your Privacy</h3>
+          <p>✅ No personal data is collected</p>
+          <p>✅ No cookies are used for tracking</p>
+          <p>✅ Cannot identify individual users</p>
+          <button onClick={clearLocalData}>Clear local preferences</button>
+        </div>
+      </div>
+    );
+  }`}
+/>
+
+### 3. Honor Preferences
+
+<CodeBlock 
+  language="tsx"
+  filename="Respect User Preferences"
+  code={`// Respect user choices
+  const privacySettings = getUserPrivacySettings();
+
+  <Datamate
+    clientId="your-client-id"
+    // Screen views are tracked automatically
+    trackWebVitals={privacySettings.allowPerformance}
+    trackErrors={privacySettings.allowErrors}
+  />`}
+/>
+
+## ⚖️ Legal Compliance
+
+### Recommended Disclosures
+
+**Privacy Policy Should Include:**
+
+- Anonymous analytics are collected via Datamate
+- No personal information or cookies are used
+- Data is used only for website improvement
+- Optional: How users can opt-out
+
+**Cookie Notice:**
+
+- **Not required for Datamate** (no cookies used)
+- Only needed if you use other tracking tools
+
+### Sample Privacy Policy Text
+
+```
+Analytics: We use Datamate to collect anonymous website usage statistics
+to help us improve our site. No personal information, cookies, or tracking
+is used. All data is completely anonymous and cannot identify individual
+visitors. Data is processed securely by Datamate and used only for
+understanding website performance and usage patterns.
+```
+
+### Minimal Privacy Notice
+
+```
+We collect anonymous usage statistics to improve our website.
+No personal data or cookies are used.
+```
+
+## 🛡️ Implementation Security
+
+### Content Security Policy
+
+<CodeBlock 
+  language="html"
+  filename="Content Security Policy"
+  code={`<!-- Add Datamate to your CSP -->
+<meta
+  http-equiv="Content-Security-Policy"
+  content="script-src 'self' https://app.datamate.cc; 
+    connect-src 'self' https://basket.datamate.cc;"
+/>`}
+/>
+
+### Secure Configuration
+
+<CodeBlock 
+  language="tsx"
+  filename="Secure Environment Configuration"
+  code={`// Environment-specific settings
+  const config = {
+    development: {
+      clientId: process.env.NEXT_PUBLIC_DATAMATE_DEV_ID,
+      disabled: true, // No tracking in development
+    },
+    production: {
+      clientId: process.env.NEXT_PUBLIC_DATAMATE_PROD_ID,
+      disabled: false,
+    },
+  }[process.env.NODE_ENV];
+
+  <Datamate {...config} />;`}
+/>
+
+## 🆘 Support & Questions
+
+### Privacy Questions
+
+If you have questions about privacy or data handling:
+
+- 📧 [privacy@datamate.cc](mailto:privacy@datamate.cc)
+- 📚 [Privacy Policy](/privacy)
+- 📊 [Data Policy](/data-policy)
+- 🛡️ [Security Overview](/docs/security)
+
+### Data Requests
+
+**No data requests needed** - Datamate doesn't collect personal data that can identify users. If you have questions about our data handling:
+
+- 📧 [privacy@datamate.cc](mailto:privacy@datamate.cc)
+
+---
+
+## What's Next?
+
+- **[SDK Reference](/docs/sdk)** - Configure tracking options
+- **[Getting Started](/docs/getting-started)** - Set up Datamate on your site
+- **[Dashboard Guide](/docs/dashboard)** - Analyze your anonymous data

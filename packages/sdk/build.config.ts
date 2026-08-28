@@ -1,0 +1,35 @@
+import { readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
+import { defineBuildConfig } from "unbuild";
+
+export default defineBuildConfig({
+	name: "@datamate/sdk",
+	entries: [
+		"./src/core/index.ts",
+		"./src/react/index.ts",
+		"./src/vue/index.ts",
+		"./src/node/index.ts",
+	],
+	externals: ["react", "react-dom", "vue", "msw"],
+	rollup: {
+		emitCJS: false,
+		esbuild: {
+			minify: false,
+			jsx: "automatic",
+		},
+	},
+	declaration: true,
+	alias: {
+		"@": resolve(import.meta.dirname, "src"),
+	},
+	hooks: {
+		"build:done": async () => {
+			try {
+				const file = await readFile("./dist/react/index.mjs", "utf-8");
+				await writeFile("./dist/react/index.mjs", `'use client';\n\n${file}`);
+			} catch (error) {
+				console.error('Failed to add "use client" directive:', error);
+			}
+		},
+	},
+});

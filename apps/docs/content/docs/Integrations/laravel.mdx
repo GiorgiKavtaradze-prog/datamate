@@ -1,0 +1,377 @@
+---
+title: Laravel
+description: Add privacy-first analytics to your Laravel application
+---
+
+import { Steps, Step } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { CodeBlock } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+Add Datamate's privacy-first analytics to your Laravel application by adding the tracking script to your main Blade layout file.
+
+## How to Add Datamate to Laravel
+
+<Steps>
+  <Step title="Get Your Tracking Script">
+    Get your Datamate tracking script from your [Datamate dashboard](https://app.datamate.cc). It will look like this:
+
+    <CodeBlock
+      language="html"
+      code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  async
+></script>`}
+    />
+
+    Replace `YOUR_CLIENT_ID` with your actual Client ID from your Datamate dashboard.
+  </Step>
+
+  <Step title="Locate Your Main Blade Layout File">
+    In a standard Laravel application, you'll have a main layout file that other Blade views extend. This file is often located at:
+
+    - `resources/views/layouts/app.blade.php` (common for applications using Laravel's authentication scaffolding)
+    - Or `resources/views/layouts/main.blade.php` or a similar custom name
+    - If you're using Laravel Jetstream or Breeze, the main layout file might be in a slightly different location within `resources/views/`
+
+    Identify the primary layout file that wraps most or all of your site's pages.
+  </Step>
+
+  <Step title="Add the Tracking Script to the Layout">
+    Open your main Blade layout file. Paste the Datamate tracking script just before the closing `</body>` tag.
+
+    <CodeBlock
+      language="php"
+      filename="resources/views/layouts/app.blade.php"
+      code={`<!DOCTYPE html>
+<html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ config('app.name', 'Laravel') }}</title>
+    {{-- Stylesheets, etc. --}}
+    @vite(['resources/css/app.css', 'resources/js/app.js'])
+</head>
+<body class="font-sans antialiased">
+    {{-- Your page content --}}
+    @yield('content')
+
+    {{-- Other scripts --}}
+
+    {{-- Datamate Analytics Script --}}
+    @if(app()->environment('production'))
+        <script
+            src="https://cdn.datamate.cc/datamate.js"
+            data-client-id="{{ config('services.datamate.client_id') }}"
+            async
+        ></script>
+    @endif
+</body>
+</html>`}
+    />
+
+    **Explanation:**
+
+    - `@if(app()->environment('production'))`: This Blade directive ensures the script is only included when your Laravel application is running in the `production` environment. This prevents tracking during local development.
+    - `{{ config('services.datamate.client_id') }}`: This accesses your Datamate Client ID from Laravel's configuration system. See step 4 for `.env` configuration.
+
+    If you prefer not to use the config helper immediately, you can hardcode the value:
+
+    <CodeBlock
+      language="php"
+      code={`{{-- Datamate Analytics Script --}}
+@if(app()->environment('production'))
+    <script
+        src="https://cdn.datamate.cc/datamate.js"
+        data-client-id="YOUR_CLIENT_ID"
+        async
+    ></script>
+@endif`}
+    />
+
+    Remember to replace `YOUR_CLIENT_ID` with your actual Client ID.
+  </Step>
+
+  <Step title="Configure Environment Variables (Recommended)">
+    It's best practice to store your Datamate Client ID and server API key in your `.env` file and access them via Laravel's configuration.
+
+    **a. Add to `.env` file:**
+    Open your `.env` file and add:
+
+    <CodeBlock
+      language="bash"
+      filename=".env"
+      code={`DATAMATE_CLIENT_ID=your-client-id-here
+DATAMATE_API_KEY=your-api-key-here
+DATAMATE_WEBSITE_ID=your-client-id-here`}
+    />
+
+    **b. Add to `config/services.php`:**
+    Open (or create if it doesn't exist) `config/services.php` and add a configuration for Datamate:
+
+    <CodeBlock
+      language="php"
+      filename="config/services.php"
+      code={`<?php
+
+return [
+    // ... other services
+
+    'datamate' => [
+        'client_id' => env('DATAMATE_CLIENT_ID'),
+        'api_key' => env('DATAMATE_API_KEY'),
+        'website_id' => env('DATAMATE_WEBSITE_ID', env('DATAMATE_CLIENT_ID')),
+    ],
+];`}
+    />
+
+    Now, the Blade template code from Step 3 using `config('services.datamate.client_id')` will work correctly.
+
+    Make sure to run `php artisan config:clear` if you've cached your configuration.
+  </Step>
+
+  <Step title="Verify Integration">
+    - Deploy your Laravel application to your production environment (or set `APP_ENV=production` locally for testing, but be mindful of tracking local data)
+    - Open your live Laravel website in a browser
+    - Navigate through a few pages
+    - Check your [Datamate dashboard](https://app.datamate.cc) for incoming data. It might take a few minutes for the first events to appear
+  </Step>
+</Steps>
+
+## Configuration Options
+
+Enable additional tracking features by adding data attributes to your script tag:
+
+<CodeBlock
+  language="php"
+  code={`{{-- Datamate Analytics Script with Options --}}
+@if(app()->environment('production'))
+    <script
+        src="https://cdn.datamate.cc/datamate.js"
+        data-client-id="{{ config('services.datamate.client_id') }}"
+        data-track-attributes
+        data-track-outgoing-links
+        data-track-interactions
+        data-track-web-vitals
+        data-track-errors
+        async
+    ></script>
+@endif`}
+/>
+
+## Custom Event Tracking
+
+Track custom events from your Laravel Blade templates or JavaScript:
+
+### In Blade Templates
+
+<CodeBlock
+  language="php"
+  code={`<button 
+    onclick="if(window.datamate) window.datamate.track('button_click', { button_id: 'cta' })"
+>
+    Click Me
+</button>`}
+/>
+
+### Using Data Attributes
+
+Enable automatic tracking with data attributes:
+
+<CodeBlock
+  language="php"
+  code={`{{-- Enable data-track attributes in script tag --}}
+<script
+    src="https://cdn.datamate.cc/datamate.js"
+    data-client-id="{{ config('services.datamate.client_id') }}"
+    data-track-attributes
+    async
+></script>
+
+{{-- Then use in your templates --}}
+<button data-track="cta_click" data-button-type="primary">
+    Get Started
+</button>
+
+<a href="/pricing" data-track="pricing_link_click" data-link-location="header">
+    View Pricing
+</a>`}
+/>
+
+### In JavaScript Files
+
+If you're using Vite or Laravel Mix, you can track events from your JavaScript:
+
+<CodeBlock
+  language="javascript"
+  filename="resources/js/app.js"
+  code={`// Track custom events
+function trackButtonClick(buttonId) {
+    if (window.datamate) {
+        window.datamate.track('button_click', {
+            button_id: buttonId,
+            page_path: window.location.pathname
+        });
+    }
+}
+
+// Track form submissions
+document.addEventListener('DOMContentLoaded', function() {
+    const forms = document.querySelectorAll('form[data-track]');
+    forms.forEach(function(form) {
+        form.addEventListener('submit', function() {
+            if (window.datamate) {
+                window.datamate.track('form_submit', {
+                    form_type: form.getAttribute('data-form-type') || 'contact',
+                    page_path: window.location.pathname
+                });
+            }
+        });
+    });
+});`}
+/>
+
+## Server-Side Tracking
+
+For server-side tracking in Laravel, use the Datamate Node SDK or make HTTP requests directly:
+
+<CodeBlock
+  language="bash"
+  code={`# Install HTTP client (Guzzle is included with Laravel)
+# No additional package needed`}
+/>
+
+<CodeBlock
+  language="php"
+  filename="app/Services/DatamateService.php"
+  code={`<?php
+
+namespace App\Services;
+
+use Illuminate\Support\Facades\Http;
+
+class DatamateService
+{
+    protected string $apiKey;
+    protected ?string $websiteId;
+    protected string $apiUrl;
+
+    public function __construct()
+    {
+        $this->apiKey = config('services.datamate.api_key');
+        $this->websiteId = config('services.datamate.website_id');
+        $this->apiUrl = 'https://basket.datamate.cc';
+    }
+
+    public function track(string $name, array $properties = []): void
+    {
+        Http::withToken($this->apiKey)->post("{$this->apiUrl}/track", [
+            'name' => $name,
+            'properties' => $properties,
+            'websiteId' => $this->websiteId,
+            'timestamp' => now()->toISOString(),
+            'source' => 'server',
+        ]);
+    }
+}`}
+/>
+
+Then use it in your controllers:
+
+<CodeBlock
+  language="php"
+  code={`use App\Services\DatamateService;
+
+class OrderController extends Controller
+{
+    public function store(Request $request, DatamateService $datamate)
+    {
+        // Process order...
+        
+        // Track order event
+        $datamate->track('order_placed', [
+            'order_id' => $order->id,
+            'total' => $order->total,
+            'currency' => 'USD',
+        ]);
+        
+        return redirect()->route('orders.show', $order);
+    }
+}`}
+/>
+
+## Common Use Cases
+
+### E-commerce Tracking
+
+Track product views and purchases:
+
+<CodeBlock
+  language="php"
+  code={`{{-- Product view page --}}
+@push('scripts')
+<script>
+    if (window.datamate) {
+        window.datamate.track('product_view', {
+            product_id: '{{ $product->id }}',
+            product_name: '{{ $product->name }}',
+            price: {{ $product->price }},
+            category: '{{ $product->category }}'
+        });
+    }
+</script>
+@endpush`}
+/>
+
+### Form Submissions
+
+Track form submissions:
+
+<CodeBlock
+  language="php"
+  code={`<form method="POST" action="{{ route('contact.store') }}" data-track="form_submit" data-form-type="contact">
+    @csrf
+    <!-- form fields -->
+    <button type="submit">Submit</button>
+</form>`}
+/>
+
+## Troubleshooting
+
+### Script Not Loading
+
+- Verify the script is in the correct Blade layout file
+- Check that `APP_ENV=production` in your `.env` file (or remove the `@if` condition for testing)
+- Check browser console for errors
+- Ensure your Client ID is correct in the config
+- Run `php artisan config:clear` if you've updated configuration
+
+### Events Not Tracking
+
+- Confirm `window.datamate` exists before calling tracking methods
+- Check browser console for any errors
+- Verify events appear in your Datamate dashboard after 2-3 minutes
+- Use browser dev tools Network tab to confirm requests are being sent
+
+### Environment-Specific Issues
+
+- The script only loads in production by default (due to `@if(app()->environment('production'))`)
+- For local testing, temporarily remove the environment check or set `APP_ENV=production` in your `.env`
+- Remember to restore the environment check before deploying
+
+## Related Integrations
+
+<Cards>
+  <Card title="React" href="/docs/Integrations/react">
+    TypeScript support with React hooks and components.
+  </Card>
+  <Card title="Next.js" href="/docs/Integrations/nextjs">
+    App Router and Pages Router support with SSR.
+  </Card>
+  <Card title="WordPress" href="/docs/Integrations/wordpress">
+    Plugin or manual setup for WordPress sites.
+  </Card>
+</Cards>
+
+Need help with your Laravel integration? Contact us at [support@datamate.cc](mailto:support@datamate.cc).

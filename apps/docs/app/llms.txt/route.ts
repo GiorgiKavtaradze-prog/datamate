@@ -1,0 +1,97 @@
+import { createHash } from "node:crypto";
+import fg from "fast-glob";
+import matter from "gray-matter";
+import fs from "node:fs/promises";
+import path from "node:path";
+import { developerResources } from "@/lib/agent-discovery";
+
+export const revalidate = false;
+
+const BASE_URL = "https://www.datamate.cc/docs";
+
+const HEADER = `# Datamate Documentation
+
+> Lightweight web analytics with an asynchronous tracker, GDPR compliant, no cookies required.
+> For the full documentation corpus, see [llms-full.txt](https://www.datamate.cc/llms-full.txt).
+
+`;
+
+const SECTION_ORDER = [
+	"root",
+	"sdk",
+	"api",
+	"Integrations",
+	"hooks",
+	"features",
+	"performance",
+	"privacy",
+	"compliance",
+];
+const SECTION_LABELS: Record<string, string> = {
+	root: "Core",
+	api: "API Reference",
+	Integrations: "Integrations",
+	hooks: "React Hooks",
+	features: "Features",
+	performance: "Performance",
+	privacy: "Privacy",
+	compliance: "Compliance",
+};
+
+export async function GET() {
+	const files = await fg(["./content/docs/**/*.mdx"]);
+
+	const entries = await Promise.all(
+		files.map(async (file) => {
+			const content = await fs.readFile(file);
+			const { data } = matter(content.toString());
+			const relativePath = file
+				.replace("./content/docs/", "")
+				.replace(".mdx", "");
+			const section = path.dirname(relativePath);
+
+			return {
+				section: section === "." ? "root" : section,
+				title: data.title || path.basename(file, ".mdx"),
+				description: data.description || "",
+				url: `${BASE_URL}/${relativePath}.md`,
+			};
+		})
+	);
+
+	const grouped = entries.reduce<Record<string, typeof entries>>(
+		(acc, entry) => {
+			acc[entry.section] = acc[entry.section] || [];
+			acc[entry.section].push(entry);
+			return acc;
+		},
+		{}
+	);
+
+	const sections = SECTION_ORDER.filter((s) => grouped[s])
+		.map((section) => {
+			const label = SECTION_LABELS[section] || section;
+			const items = grouped[section]
+				.map((i) => `- [${i.title}](${i.url}): ${i.description}`)
+				.join("\n");
+			return `## ${label}\n${items}`;
+		})
+		.join("\n\n");
+
+	const resourceList = developerResources
+		.map(
+			(resource) =>
+				`- [${resource.title}](${resource.url}): ${resource.description}`
+		)
+		.join("\n");
+
+	const body = `${HEADER}## Developer Resources\n${resourceList}\n\n${sections}`;
+
+	return new Response(body, {
+		headers: {
+			"Content-Type": "text/markdown; charset=utf-8",
+			"Cache-Control": "public, max-age=3600, must-revalidate",
+			ETag: `"${createHash("sha256").update(body).digest("hex").slice(0, 16)}"`,
+		},
+	});
+}

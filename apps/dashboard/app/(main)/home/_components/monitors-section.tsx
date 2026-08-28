@@ -1,0 +1,264 @@
+"use client";
+
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useMemo } from "react";
+import { useBatchDynamicQuery } from "@/hooks/use-dynamic-query";
+import { buildUptimeHeatmapDays } from "@datamate/ui/uptime";
+import { UptimeHeatmapStrip } from "@datamate/ui/uptime";
+import { cn } from "@/lib/utils";
+import { HeartbeatIcon, PlusIcon } from "@datamate/ui/icons";
+import { Button, Card, Skeleton, dayjs, formatDateOnly } from "@datamate/ui";
+
+interface MonitorsSectionProps {
+	activeMonitors: number;
+	isLoading: boolean;
+	monitors: Array<{
+		id: string;
+		name: string | null;
+		url: string;
+		websiteId: string | null;
+		isPaused: boolean;
+		granularity: string;
+	}>;
+	onCreateMonitorAction?: () => void;
+	totalMonitors: number;
+}
+
+function HomeMonitorHeatmap({
+	data,
+	isActive,
+}: {
+	data: Array<{ date: string; uptime_percentage?: number }>;
+	isActive: boolean;
+}) {
+	const heatmapData = useMemo(() => buildUptimeHeatmapDays(data, 30), [data]);
+
+	return (
+		<UptimeHeatmapStrip
+			days={heatmapData}
+			emptyLabel="No data"
+			getDateLabel={(d) => formatDateOnly(d)}
+			interactive={false}
+			isActive={isActive}
+			stripClassName="mt-1.5 grid h-1.5 w-full gap-x-px"
+			tooltipHasData={(day) => day.hasData && isActive}
+		/>
+	);
+}
+
+function MonitorRow({
+	monitor,
+}: {
+	monitor: {
+		id: string;
+		name: string | null;
+		url: string;
+		websiteId: string | null;
+		isPaused: boolean;
+		granularity: string;
+	};
+}) {
+	const isActive = !monitor.isPaused;
+	const displayName = monitor.name || monitor.url || "Unknown";
+
+	const heatmapDateRange = useMemo(
+		() => ({
+			start_date: dayjs()
+				.subtract(29, "day")
+				.startOf("day")
+				.format("YYYY-MM-DD"),
+			end_date: dayjs().startOf("day").format("YYYY-MM-DD"),
+			granularity: "daily" as const,
+		}),
+		[]
+	);
+
+	const queryIdOptions = useMemo(
+		() =>
+			monitor.websiteId
+				? { websiteId: monitor.websiteId }
+				: { scheduleId: monitor.id },
+		[monitor.websiteId, monitor.id]
+	);
+
+	const heatmapQueries = useMemo(
+		() => [
+			{
+				id: "uptime-heatmap",
+				parameters: ["uptime_time_series"],
+				granularity: "daily" as const,
+			},
+		],
+		[]
+	);
+
+	const { getDataForQuery, isLoading: isLoadingHeatmap } = useBatchDynamicQuery(
+		queryIdOptions,
+		heatmapDateRange,
+		heatmapQueries,
+		{
+			enabled: isActive,
+		}
+	);
+
+	const heatmapData =
+		(getDataForQuery("uptime-heatmap", "uptime_time_series") as Array<{
+			date: string;
+			uptime_percentage?: number;
+		}>) || [];
+
+	return (
+		<Link
+			className="block px-5 py-3 transition-colors hover:bg-accent/50"
+			href={`/monitors/${monitor.id}`}
+		>
+			<div className="flex items-center gap-3">
+				<div
+					className={cn(
+						"flex size-7 shrink-0 items-center justify-center rounded",
+						isActive
+							? "bg-emerald-500/10 text-emerald-500"
+							: "bg-muted text-muted-foreground"
+					)}
+				>
+					<HeartbeatIcon className="size-4" weight="duotone" />
+				</div>
+				<div className="min-w-0 flex-1">
+					<p className="truncate font-medium text-foreground text-sm">
+						{displayName}
+					</p>
+					<p className="truncate text-muted-foreground text-xs">
+						{isActive ? "Monitoring active" : "Paused"}
+					</p>
+				</div>
+			</div>
+			{isLoadingHeatmap ? (
+				<Skeleton className="mt-1.5 h-5 w-full rounded" />
+			) : (
+				<HomeMonitorHeatmap data={heatmapData} isActive={isActive} />
+			)}
+		</Link>
+	);
+}
+
+function MonitorRowSkeleton() {
+	return (
+		<div className="px-5 py-3">
+			<div className="flex items-center gap-3">
+				<Skeleton className="size-7 shrink-0 rounded" />
+				<div className="min-w-0 flex-1 space-y-1">
+					<Skeleton className="h-4 w-32" />
+					<Skeleton className="h-3 w-24" />
+				</div>
+			</div>
+			<Skeleton className="mt-1.5 h-5 w-full rounded" />
+		</div>
+	);
+}
+
+function MonitorsEmptyState({ onAdd }: { onAdd: () => void }) {
+	return (
+		<div className="flex items-center gap-3 px-5 py-4">
+			<div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-muted">
+				<HeartbeatIcon
+					className="size-5 text-muted-foreground"
+					weight="duotone"
+				/>
+			</div>
+			<div className="min-w-0 flex-1">
+				<p className="font-medium text-foreground text-sm">No monitors yet</p>
+				<p className="text-muted-foreground text-xs">
+					<button
+						className="text-primary hover:underline"
+						onClick={onAdd}
+						type="button"
+					>
+						Create your first monitor
+					</button>
+				</p>
+			</div>
+		</div>
+	);
+}
+
+export function MonitorsSection({
+	monitors,
+	totalMonitors,
+	activeMonitors,
+	isLoading,
+	onCreateMonitorAction,
+}: MonitorsSectionProps) {
+	const router = useRouter();
+
+	const handleAddMonitor = () => {
+		if (onCreateMonitorAction) {
+			onCreateMonitorAction();
+		} else {
+			router.push("/monitors");
+		}
+	};
+
+	if (isLoading) {
+		return (
+			<Card>
+				<Card.Header className="flex-row items-center gap-3">
+					<HeartbeatIcon className="size-4 text-primary" weight="duotone" />
+					<Skeleton className="h-4 w-20" />
+				</Card.Header>
+				<div className="divide-y">
+					<MonitorRowSkeleton />
+					<MonitorRowSkeleton />
+				</div>
+			</Card>
+		);
+	}
+
+	const hasIssues = activeMonitors < totalMonitors;
+
+	return (
+		<Card className={hasIssues ? "border-amber-500/30" : ""}>
+			<Card.Header className="flex-row items-center justify-between gap-3">
+				<div className="flex items-center gap-2">
+					<HeartbeatIcon className="size-4 text-primary" weight="duotone" />
+					<Card.Title className="text-sm">Monitors</Card.Title>
+				</div>
+				{totalMonitors > 0 ? (
+					<span className="text-muted-foreground text-xs">
+						{activeMonitors} / {totalMonitors} active
+					</span>
+				) : (
+					<Button
+						className="h-7 gap-1 text-xs"
+						onClick={handleAddMonitor}
+						size="sm"
+						variant="ghost"
+					>
+						<PlusIcon className="size-3" />
+						Add
+					</Button>
+				)}
+			</Card.Header>
+
+			{totalMonitors === 0 ? (
+				<MonitorsEmptyState onAdd={handleAddMonitor} />
+			) : (
+				<>
+					<div className="divide-y">
+						{monitors.slice(0, 3).map((monitor) => (
+							<MonitorRow key={monitor.id} monitor={monitor} />
+						))}
+					</div>
+					{totalMonitors > 3 && (
+						<Link
+							className="block border-t px-5 py-2 text-center text-muted-foreground text-xs hover:bg-accent/50 hover:text-foreground"
+							href="/monitors"
+						>
+							View all {totalMonitors} monitors →
+						</Link>
+					)}
+				</>
+			)}
+		</Card>
+	);
+}

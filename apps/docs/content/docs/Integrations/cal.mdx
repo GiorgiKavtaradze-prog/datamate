@@ -1,0 +1,82 @@
+---
+title: Cal.com
+description: Track and analyze user behavior from your website to your Cal.com scheduling pages with Datamate.
+---
+
+import { Card, Cards, Callout } from "@/components/docs";
+
+Integrate **Datamate** with your **Cal.com** scheduling pages to gain insights into user behavior and improve your booking performance.
+
+> **TL;DR:** Connect your Cal.com account to Datamate using your Client ID.
+
+---
+
+## How to set up Datamate with Cal.com
+
+1. Go to your [Datamate dashboard](https://app.datamate.cc) and copy your **Client ID**.
+2. Log in to your [Cal.com account](https://app.cal.com).
+3. Open the [**Datamate App**](https://app.cal.com/apps/datamate) in the App Store.
+4. Click **Install App**.
+5. Activate it on each event page you want to track by adding your **Client ID**.
+   > For self-hosted setups, you can also provide your **API URL** and **Script URL** [see details](/docs/Integrations/cal#for-self-hosted-datamate-users).
+
+That's it! Your Cal.com pages are now connected to Datamate.
+
+---
+
+## Security settings
+
+By default, Datamate only accepts requests from your website's registered domain. To track analytics from Cal.com booking pages, you need to add Cal.com to your allowed origins.
+
+**Go to:** Open [Websites](https://app.datamate.cc/websites), select your site, then go to **Settings → Security**.
+
+**Add these origins:**
+
+```
+cal.com
+*.cal.com
+```
+
+<Callout type="info">
+  The wildcard `*.cal.com` covers all Cal.com subdomains including `app.cal.com` and any custom subdomains.
+</Callout>
+
+Learn more about [security settings](/docs/security#access-control-settings).
+
+---
+
+## For self-hosted Datamate users
+
+If you're using a self-hosted version of Datamate:
+
+1. Enter your **Client ID**, **API URL**, and **Script URL** during setup.
+2. Save and complete the installation.
+
+---
+
+## Use case
+
+You can use the **same Client ID** across your **main website** and **Cal.com booking pages** to track full user journeys.
+
+Example:
+
+- A visitor lands on `yourwebsite.com/pricing` → clicks "Book a demo" → schedules via your Cal.com page.
+- In Datamate, you can use the [dashboard](/docs/dashboard) to measure drop-off, set up goals, and optimize conversions.
+
+---
+
+## Related Integrations
+
+<Cards>
+  <Card title="React" href="/docs/Integrations/react">
+    TypeScript support with React hooks and components.
+  </Card>
+  <Card title="Next.js" href="/docs/Integrations/nextjs">
+    App Router and Pages Router support with SSR.
+  </Card>
+  <Card title="Google Tag Manager" href="/docs/Integrations/gtm">
+    Manage Datamate alongside other marketing tags.
+  </Card>
+</Cards>
+
+Start tracking smarter today with [Datamate × Cal.com](https://app.cal.com/apps/datamate).

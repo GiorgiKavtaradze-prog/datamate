@@ -1,0 +1,487 @@
+---
+title: Angular
+description: Add privacy-first analytics to your Angular application
+---
+
+import { Steps, Step } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { CodeBlock } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+This guide explains how to integrate Datamate with your Angular application.
+
+## How to Add Datamate to Your Angular App
+
+The recommended method is to add the Datamate tracking script directly to your `src/index.html` file. This ensures the script is loaded early and reliably for your Angular application.
+
+### Adding to `src/index.html`
+
+<Steps>
+  <Step title="Get Your Tracking Script">
+    Navigate to your [Datamate dashboard](https://app.datamate.cc) to get your tracking code snippet. It will look like this:
+
+    <CodeBlock
+      language="html"
+      code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  async
+></script>`}
+    />
+
+    Remember to replace `YOUR_CLIENT_ID` with your actual Client ID.
+  </Step>
+
+  <Step title="Locate Your index.html File">
+    In a standard Angular CLI project, this file is typically located at `src/index.html`.
+  </Step>
+
+  <Step title="Add the Snippet to index.html">
+    Open `src/index.html` and paste the Datamate tracking snippet just before the closing `</head>` tag or `</body>` tag. Placing it in the `<head>` is generally preferred for earlier loading.
+
+    <CodeBlock
+      language="html"
+      filename="src/index.html"
+      code={`<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>MyAngularApp</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <!-- Datamate Tracking Snippet -->
+  <script
+    src="https://cdn.datamate.cc/datamate.js"
+    data-client-id="YOUR_CLIENT_ID"
+    async
+  ></script>
+</head>
+<body>
+  <app-root></app-root>
+  <!-- If you prefer, you can also place the script here, before </body> -->
+</body>
+</html>`}
+    />
+
+    Make sure to replace `YOUR_CLIENT_ID` with your actual Client ID.
+  </Step>
+
+  <Step title="Verify Installation">
+    After building and deploying your application, open your [Datamate dashboard](https://app.datamate.cc) to check if data is being received. You can also inspect your browser's network tab to confirm the script is loaded.
+  </Step>
+</Steps>
+
+<Callout type="info">
+  **SPA Page View Tracking**: Datamate automatically detects route changes in most Angular applications using Angular Router and tracks them as page views. If you find that page views are not being tracked correctly after navigation, you can manually trigger page views by subscribing to router events:
+
+  <CodeBlock
+    language="typescript"
+    code={`// In a relevant component or service
+import { Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
+
+// In constructor: constructor(private router: Router) {}
+
+this.router.events.pipe(
+  filter(event => event instanceof NavigationEnd)
+).subscribe(() => {
+  if (window.datamate) {
+    window.datamate.screenView({
+      path: window.location.pathname
+    });
+  }
+});`}
+  />
+
+  However, test the default behavior first, as manual tracking might not be necessary.
+</Callout>
+
+## Custom Event Tracking
+
+Once the Datamate script is installed and loaded, you can track custom events from any of your Angular components or services.
+
+### TypeScript Declaration
+
+First, declare the Datamate types for TypeScript:
+
+<CodeBlock
+  language="typescript"
+  filename="src/app/types/datamate.d.ts"
+  code={`declare global {
+  interface Window {
+    datamate?: {
+      track: (eventName: string, properties?: Record<string, unknown>) => void;
+      screenView: (properties?: Record<string, unknown>) => void;
+      flush: () => void;
+      clear: () => void;
+      setGlobalProperties: (properties: Record<string, unknown>) => void;
+    };
+  }
+}
+
+export {};`}
+/>
+
+### Component Example
+
+<CodeBlock
+  language="typescript"
+  filename="src/app/components/my-feature.component.ts"
+  code={`import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-my-feature',
+  template: \`<button (click)="onFeatureClick()">Use Feature</button>\`,
+})
+export class MyFeatureComponent {
+  onFeatureClick(): void {
+    if (window.datamate && typeof window.datamate.track === 'function') {
+      window.datamate.track('feature_used', {
+        featureName: 'Amazing Feature',
+        component: 'MyFeatureComponent'
+      });
+    } else {
+      console.warn('Datamate tracking not available.');
+    }
+  }
+}`}
+/>
+
+Always ensure `window.datamate` and its methods are available before calling them.
+
+## Service-Based Tracking
+
+Create a service for centralized tracking:
+
+<CodeBlock
+  language="typescript"
+  filename="src/app/services/analytics.service.ts"
+  code={`import { Injectable } from '@angular/core';
+
+@Injectable({
+  providedIn: 'root'
+})
+export class AnalyticsService {
+  track(eventName: string, properties?: Record<string, unknown>): void {
+    if (typeof window !== 'undefined' && window.datamate) {
+      window.datamate.track(eventName, properties);
+    }
+  }
+
+  screenView(properties?: Record<string, unknown>): void {
+    if (typeof window !== 'undefined' && window.datamate) {
+      window.datamate.screenView(properties);
+    }
+  }
+
+  setGlobalProperties(properties: Record<string, unknown>): void {
+    if (typeof window !== 'undefined' && window.datamate) {
+      window.datamate.setGlobalProperties(properties);
+    }
+  }
+}`}
+/>
+
+Then use it in your components:
+
+<CodeBlock
+  language="typescript"
+  code={`import { Component } from '@angular/core';
+import { AnalyticsService } from './services/analytics.service';
+
+@Component({
+  selector: 'app-checkout',
+  templateUrl: './checkout.component.html'
+})
+export class CheckoutComponent {
+  constructor(private analytics: AnalyticsService) {}
+
+  onPurchaseComplete(orderId: string, total: number): void {
+    this.analytics.track('purchase_complete', {
+      order_id: orderId,
+      total: total,
+      currency: 'USD'
+    });
+  }
+}`}
+/>
+
+## Route Change Tracking
+
+Track route changes automatically:
+
+<CodeBlock
+  language="typescript"
+  filename="src/app/app.component.ts"
+  code={`import { Component, OnInit } from '@angular/core';
+import { Router, NavigationEnd } from '@angular/router';
+import { filter } from 'rxjs/operators';
+
+@Component({
+  selector: 'app-root',
+  templateUrl: './app.component.html'
+})
+export class AppComponent implements OnInit {
+  constructor(private router: Router) {}
+
+  ngOnInit(): void {
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd)
+    ).subscribe((event: NavigationEnd) => {
+      if (window.datamate) {
+        window.datamate.screenView({
+          path: event.urlAfterRedirects,
+          screen_name: event.urlAfterRedirects,
+          screen_class: 'Angular'
+        });
+      }
+    });
+  }
+}`}
+/>
+
+## Configuration Options
+
+Enable additional tracking features by adding data attributes to your script tag:
+
+<CodeBlock
+  language="html"
+  filename="src/index.html"
+  code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-track-attributes
+  data-track-outgoing-links
+  data-track-interactions
+  data-track-web-vitals
+  data-track-errors
+  async
+></script>`}
+/>
+
+## Using Data Attributes
+
+Enable automatic tracking with data attributes:
+
+<CodeBlock
+  language="html"
+  filename="src/app/components/cta.component.html"
+  code={`<button 
+  data-track="cta_click" 
+  data-button-type="primary"
+  (click)="handleClick()"
+>
+  Get Started
+</button>
+
+<a 
+  href="/pricing" 
+  data-track="pricing_link_click"
+  data-link-location="header"
+>
+  View Pricing
+</a>`}
+/>
+
+## Common Use Cases
+
+### Form Submissions
+
+Track form submissions:
+
+<CodeBlock
+  language="typescript"
+  code={`import { Component } from '@angular/core';
+import { FormBuilder, FormGroup } from '@angular/forms';
+
+@Component({
+  selector: 'app-contact-form',
+  templateUrl: './contact-form.component.html'
+})
+export class ContactFormComponent {
+  contactForm: FormGroup;
+
+  constructor(private fb: FormBuilder) {
+    this.contactForm = this.fb.group({
+      name: [''],
+      email: ['']
+    });
+  }
+
+  onSubmit(): void {
+    if (window.datamate) {
+      window.datamate.track('form_submit', {
+        form_type: 'contact',
+        form_id: 'contact-form'
+      });
+    }
+    
+    // Your form submission logic here
+  }
+}`}
+/>
+
+### User Actions
+
+Track user interactions:
+
+<CodeBlock
+  language="typescript"
+  code={`import { Component } from '@angular/core';
+
+@Component({
+  selector: 'app-product-card',
+  templateUrl: './product-card.component.html'
+})
+export class ProductCardComponent {
+  onProductClick(productId: string, productName: string): void {
+    if (window.datamate) {
+      window.datamate.track('product_click', {
+        product_id: productId,
+        product_name: productName,
+        page_path: window.location.pathname
+      });
+    }
+  }
+
+  onAddToCart(productId: string, quantity: number): void {
+    if (window.datamate) {
+      window.datamate.track('add_to_cart', {
+        product_id: productId,
+        quantity: quantity
+      });
+    }
+  }
+}`}
+/>
+
+### Error Tracking
+
+Track errors automatically (if enabled) or manually:
+
+<CodeBlock
+  language="typescript"
+  code={`import { ErrorHandler, Injectable } from '@angular/core';
+
+@Injectable()
+export class CustomErrorHandler implements ErrorHandler {
+  handleError(error: Error): void {
+    // Log to console
+    console.error('Error:', error);
+
+    // Track in Datamate
+    if (window.datamate) {
+      window.datamate.track('error', {
+        error_message: error.message,
+        error_stack: error.stack,
+        page_path: window.location.pathname
+      });
+    }
+
+    // Your error handling logic
+  }
+}`}
+/>
+
+Register it in your `app.config.ts`:
+
+<CodeBlock
+  language="typescript"
+  filename="src/app/app.config.ts"
+  code={`import { ApplicationConfig, ErrorHandler } from '@angular/core';
+import { CustomErrorHandler } from './error-handler';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    { provide: ErrorHandler, useClass: CustomErrorHandler }
+  ]
+};`}
+/>
+
+## Environment Configuration
+
+Store your Client ID in environment variables:
+
+<CodeBlock
+  language="typescript"
+  filename="src/environments/environment.ts"
+  code={`export const environment = {
+  production: false,
+  datamateClientId: 'your-dev-client-id'
+};`}
+/>
+
+<CodeBlock
+  language="typescript"
+  filename="src/environments/environment.prod.ts"
+  code={`export const environment = {
+  production: true,
+  datamateClientId: 'your-prod-client-id'
+};`}
+/>
+
+Then use it in your `index.html`:
+
+<CodeBlock
+  language="html"
+  filename="src/index.html"
+  code={`<script>
+  // Set client ID based on environment
+  window.datamateConfig = {
+    clientId: 'YOUR_CLIENT_ID' // Replace with environment variable or build-time replacement
+  };
+</script>
+<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  async
+></script>`}
+/>
+
+## Troubleshooting
+
+### Script Not Loading
+
+- Verify the script is in `src/index.html` in the `<head>` section
+- Check browser console for errors
+- Ensure your Client ID is correct
+- Clear browser cache and reload
+- Check Angular build output for any issues
+
+### Events Not Tracking
+
+- Confirm `window.datamate` exists before calling tracking methods
+- Always check `typeof window !== 'undefined'` for SSR safety
+- Check browser console for any errors
+- Verify events appear in your Datamate dashboard after 2-3 minutes
+- Use browser dev tools Network tab to confirm requests are being sent
+
+### Route Changes Not Tracked
+
+- Datamate automatically tracks route changes in most Angular apps
+- If needed, manually track using router events (see example above)
+- Check that Angular Router is properly configured
+- Verify navigation events are firing correctly
+
+### TypeScript Errors
+
+- Ensure you've declared `window.datamate` types (see TypeScript Declaration section)
+- Add the declaration file to your `tsconfig.json` includes
+- Use optional chaining: `window.datamate?.track(...)`
+
+## Related Integrations
+
+<Cards>
+  <Card title="React" href="/docs/Integrations/react">
+    TypeScript support with React hooks and components.
+  </Card>
+  <Card title="Next.js" href="/docs/Integrations/nextjs">
+    App Router and Pages Router support with SSR.
+  </Card>
+  <Card title="Svelte" href="/docs/Integrations/svelte">
+    Lightweight Svelte integration with reactive tracking.
+  </Card>
+</Cards>
+
+Need help with your Angular integration? Contact us at [support@datamate.cc](mailto:support@datamate.cc).

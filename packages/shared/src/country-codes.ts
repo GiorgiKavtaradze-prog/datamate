@@ -1,0 +1,326 @@
+/**
+ * Country code mapping utility
+ * Maps country names to ISO 3166-1 alpha-2 codes
+ */
+
+const COUNTRY_NAME_TO_CODE: Record<string, string> = {
+	Afghanistan: "AF",
+	"Åland Islands": "AX",
+	Albania: "AL",
+	Algeria: "DZ",
+	"American Samoa": "AS",
+	Andorra: "AD",
+	Angola: "AO",
+	Anguilla: "AI",
+	Antarctica: "AQ",
+	"Antigua and Barbuda": "AG",
+	Argentina: "AR",
+	Armenia: "AM",
+	Aruba: "AW",
+	Australia: "AU",
+	Austria: "AT",
+	Azerbaijan: "AZ",
+	Bahamas: "BS",
+	Bahrain: "BH",
+	Bangladesh: "BD",
+	Barbados: "BB",
+	Belarus: "BY",
+	Belgium: "BE",
+	Belize: "BZ",
+	Benin: "BJ",
+	Bermuda: "BM",
+	Bhutan: "BT",
+	Bolivia: "BO",
+	"Bonaire, Sint Eustatius and Saba": "BQ",
+	"Bosnia and Herzegovina": "BA",
+	Botswana: "BW",
+	"Bouvet Island": "BV",
+	Brazil: "BR",
+	"British Indian Ocean Territory": "IO",
+	"Brunei Darussalam": "BN",
+	Bulgaria: "BG",
+	"Burkina Faso": "BF",
+	Burundi: "BI",
+	"Cabo Verde": "CV",
+	Cambodia: "KH",
+	Cameroon: "CM",
+	Canada: "CA",
+	"Cayman Islands": "KY",
+	"Central African Republic": "CF",
+	Chad: "TD",
+	Chile: "CL",
+	China: "CN",
+	"Christmas Island": "CX",
+	"Cocos (Keeling) Islands": "CC",
+	Colombia: "CO",
+	Comoros: "KM",
+	Congo: "CG",
+	"Congo, Democratic Republic of the": "CD",
+	"Cook Islands": "CK",
+	"Costa Rica": "CR",
+	"Côte d'Ivoire": "CI",
+	Croatia: "HR",
+	Cuba: "CU",
+	Curaçao: "CW",
+	Cyprus: "CY",
+	"Czech Republic": "CZ",
+	Czechia: "CZ",
+	Denmark: "DK",
+	Djibouti: "DJ",
+	Dominica: "DM",
+	"Dominican Republic": "DO",
+	Ecuador: "EC",
+	Egypt: "EG",
+	"El Salvador": "SV",
+	"Equatorial Guinea": "GQ",
+	Eritrea: "ER",
+	Estonia: "EE",
+	Eswatini: "SZ",
+	Ethiopia: "ET",
+	"Falkland Islands": "FK",
+	"Faroe Islands": "FO",
+	Fiji: "FJ",
+	Finland: "FI",
+	France: "FR",
+	"French Guiana": "GF",
+	"French Polynesia": "PF",
+	"French Southern Territories": "TF",
+	Gabon: "GA",
+	Gambia: "GM",
+	Georgia: "GE",
+	Germany: "DE",
+	Ghana: "GH",
+	Gibraltar: "GI",
+	Greece: "GR",
+	Greenland: "GL",
+	Grenada: "GD",
+	Guadeloupe: "GP",
+	Guam: "GU",
+	Guatemala: "GT",
+	Guernsey: "GG",
+	Guinea: "GN",
+	"Guinea-Bissau": "GW",
+	Guyana: "GY",
+	Haiti: "HT",
+	"Heard Island and McDonald Islands": "HM",
+	"Holy See": "VA",
+	Honduras: "HN",
+	"Hong Kong": "HK",
+	Hungary: "HU",
+	Kosovo: "XK",
+	Iceland: "IS",
+	"Ivory Coast": "CI",
+	India: "IN",
+	Indonesia: "ID",
+	Iran: "IR",
+	Iraq: "IQ",
+	Ireland: "IE",
+	"Isle of Man": "IM",
+	Israel: "IL",
+	Italy: "IT",
+	Jamaica: "JM",
+	Japan: "JP",
+	Jersey: "JE",
+	Jordan: "JO",
+	Kazakhstan: "KZ",
+	Kenya: "KE",
+	Kiribati: "KI",
+	"Korea, Democratic People's Republic of": "KP",
+	"Korea, Republic of": "KR",
+	Kuwait: "KW",
+	Kyrgyzstan: "KG",
+	"Lao People's Democratic Republic": "LA",
+	Latvia: "LV",
+	Lebanon: "LB",
+	Lesotho: "LS",
+	Liberia: "LR",
+	Libya: "LY",
+	Liechtenstein: "LI",
+	Lithuania: "LT",
+	Luxembourg: "LU",
+	Macao: "MO",
+	Madagascar: "MG",
+	Malawi: "MW",
+	Malaysia: "MY",
+	Maldives: "MV",
+	Mali: "ML",
+	Malta: "MT",
+	"Marshall Islands": "MH",
+	Martinique: "MQ",
+	Mauritania: "MR",
+	Mauritius: "MU",
+	Mayotte: "YT",
+	Mexico: "MX",
+	Micronesia: "FM",
+	Moldova: "MD",
+	Monaco: "MC",
+	Mongolia: "MN",
+	Montenegro: "ME",
+	Montserrat: "MS",
+	Morocco: "MA",
+	Mozambique: "MZ",
+	Myanmar: "MM",
+	Namibia: "NA",
+	Nauru: "NR",
+	Nepal: "NP",
+	Netherlands: "NL",
+	"New Caledonia": "NC",
+	"New Zealand": "NZ",
+	Nicaragua: "NI",
+	Niger: "NE",
+	Nigeria: "NG",
+	Niue: "NU",
+	"Norfolk Island": "NF",
+	"North Macedonia": "MK",
+	"Northern Mariana Islands": "MP",
+	Norway: "NO",
+	Oman: "OM",
+	Pakistan: "PK",
+	Palau: "PW",
+	Palestine: "PS",
+	Panama: "PA",
+	"Papua New Guinea": "PG",
+	Paraguay: "PY",
+	Peru: "PE",
+	Philippines: "PH",
+	Pitcairn: "PN",
+	Poland: "PL",
+	Portugal: "PT",
+	"Puerto Rico": "PR",
+	Qatar: "QA",
+	Réunion: "RE",
+	Romania: "RO",
+	"Russian Federation": "RU",
+	Russia: "RU",
+	Rwanda: "RW",
+	"Saint Barthélemy": "BL",
+	"Saint Helena": "SH",
+	"Saint Kitts and Nevis": "KN",
+	"Saint Lucia": "LC",
+	"Saint Martin": "MF",
+	"Saint Pierre and Miquelon": "PM",
+	"Saint Vincent and the Grenadines": "VC",
+	Samoa: "WS",
+	"San Marino": "SM",
+	"Sao Tome and Principe": "ST",
+	"Saudi Arabia": "SA",
+	Senegal: "SN",
+	Serbia: "RS",
+	Seychelles: "SC",
+	"Sierra Leone": "SL",
+	Singapore: "SG",
+	"Sint Maarten": "SX",
+	Slovakia: "SK",
+	Slovenia: "SI",
+	"Solomon Islands": "SB",
+	Somalia: "SO",
+	"South Africa": "ZA",
+	"South Georgia and the South Sandwich Islands": "GS",
+	"South Sudan": "SS",
+	Spain: "ES",
+	"Sri Lanka": "LK",
+	Sudan: "SD",
+	Suriname: "SR",
+	"Svalbard and Jan Mayen": "SJ",
+	Sweden: "SE",
+	Switzerland: "CH",
+	"Syrian Arab Republic": "SY",
+	Taiwan: "TW",
+	Tajikistan: "TJ",
+	Tanzania: "TZ",
+	Thailand: "TH",
+	"Timor-Leste": "TL",
+	Togo: "TG",
+	Tokelau: "TK",
+	Tonga: "TO",
+	"Trinidad and Tobago": "TT",
+	Tunisia: "TN",
+	Turkey: "TR",
+	Türkiye: "TR",
+	Turkmenistan: "TM",
+	"Turks and Caicos Islands": "TC",
+	Tuvalu: "TV",
+	Uganda: "UG",
+	Ukraine: "UA",
+	"United Arab Emirates": "AE",
+	"United Kingdom": "GB",
+	"United States": "US",
+	"United States Minor Outlying Islands": "UM",
+	Uruguay: "UY",
+	Uzbekistan: "UZ",
+	Vanuatu: "VU",
+	Venezuela: "VE",
+	"Viet Nam": "VN",
+	Vietnam: "VN",
+	"Virgin Islands, British": "VG",
+	"Virgin Islands, U.S.": "VI",
+	"Wallis and Futuna": "WF",
+	"Western Sahara": "EH",
+	Yemen: "YE",
+	Zambia: "ZM",
+	Zimbabwe: "ZW",
+	"The Netherlands": "NL",
+	"South Korea": "KR",
+	"North Korea": "KP",
+};
+
+/**
+ * Maps country name to ISO 3166-1 alpha-2 code
+ * @param countryName - The country name to map
+ * @returns The ISO country code, or the original name if not found
+ */
+export function getCountryCode(countryName: string): string {
+	if (!countryName) {
+		return "";
+	}
+
+	if (countryName === "IL") {
+		return "PS";
+	}
+
+	const exactMatch = COUNTRY_NAME_TO_CODE[countryName];
+	if (exactMatch) {
+		return exactMatch;
+	}
+
+	const normalizedName = countryName.toLowerCase();
+	for (const [name, code] of Object.entries(COUNTRY_NAME_TO_CODE)) {
+		if (name.toLowerCase() === normalizedName) {
+			return code;
+		}
+	}
+
+	return countryName;
+}
+
+/**
+ * Maps country code to country name
+ * @param countryCode - The ISO country code to map
+ * @returns The country name, or the original code if not found
+ */
+export function getCountryName(countryCode: string): string {
+	if (!countryCode) {
+		return "";
+	}
+
+	for (const [name, code] of Object.entries(COUNTRY_NAME_TO_CODE)) {
+		if (code === countryCode) {
+			return name;
+		}
+	}
+
+	return countryCode;
+}
+
+/**
+ * Resolves a raw country value (ISO code or name) to a display name.
+ * Single source of truth for country display — use everywhere a country is
+ * shown so raw codes like "DE" never leak into the UI. Returns "" for
+ * empty/unknown so callers can apply their own fallback label.
+ */
+export function formatCountryName(raw: string | null | undefined): string {
+	if (!raw || raw === "Unknown") {
+		return "";
+	}
+	return getCountryName(getCountryCode(raw)) || raw;
+}

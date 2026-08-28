@@ -1,0 +1,32 @@
+{
+  "title": "Integrations",
+  "description": "Add Datamate to your favorite platforms",
+  "icon": "Plug",
+  "pages": [
+    "index",
+    "---Frameworks---",
+    "nextjs",
+    "react",
+    "angular",
+    "svelte",
+    "sveltekit",
+    "laravel",
+    "---CMS & Builders---",
+    "wordpress",
+    "webflow",
+    "wix",
+    "squarespace",
+    "framer",
+    "bubble",
+    "mintlify",
+    "---Stores & Scheduling---",
+    "shopify",
+    "cal",
+    "---Payments---",
+    "payments",
+    "---Static Sites & Tools---",
+    "hugo",
+    "jekyll",
+    "gtm"
+  ]
+}

@@ -1,0 +1,151 @@
+---
+title: SDK Overview
+description: SDK documentation for tracking analytics across web and server runtimes
+---
+
+import { Card, Cards, Callout, CodeBlock } from "@/components/docs";
+
+The Datamate SDK provides framework-specific components, helper functions, server-side tracking, and a vanilla JavaScript library for tracking analytics events. Choose your preferred integration method.
+
+<Callout type="info">
+  **SDK Version**: 2.0.0+ | **Package**: `@datamate/sdk` | **CDN**: cdn.datamate.cc
+</Callout>
+
+## Installation
+
+<CodeBlock language="bash">
+  {`# Using bun (recommended)
+bun add @datamate/sdk
+
+# Using npm
+npm install @datamate/sdk`}
+</CodeBlock>
+
+For vanilla JavaScript, no installation needed - load directly from CDN.
+
+## Quick Start
+
+<Cards>
+  <Card title="React / Next.js" href="/docs/sdk/react">
+    Component and hooks for React applications
+  </Card>
+  <Card title="Nuxt" href="/docs/sdk/nuxt">
+    First-class Nuxt module for script injection, SPA navigation, and optional error tracking
+  </Card>
+  <Card title="Vue" href="/docs/sdk/vue">
+    Component and composables for Vue applications
+  </Card>
+  <Card title="Vanilla JavaScript" href="/docs/sdk/vanilla-js">
+    CDN script for any website without dependencies
+  </Card>
+  <Card title="Node.js / Server" href="/docs/sdk/node">
+    Server-side tracking for APIs, webhooks, and background jobs
+  </Card>
+</Cards>
+
+## Core Features
+
+<Cards>
+  <Card title="Tracker Helpers" href="/docs/sdk/tracker">
+    Helper functions: track, flush, getAnonymousId, getTrackingParams
+  </Card>
+  <Card title="Feature Flags" href="/docs/sdk/feature-flags">
+    Control feature rollouts and A/B testing in React and Vue
+  </Card>
+  <Card title="Server Flags" href="/docs/sdk/server-flags">
+    Server-side feature flag evaluation for Node.js
+  </Card>
+  <Card title="DevTools" href="/docs/sdk/devtools">
+    Local overlay for events, identity, queues, diagnostics, and flags
+  </Card>
+  <Card title="Configuration" href="/docs/sdk/configuration">
+    All configuration options across platforms
+  </Card>
+</Cards>
+
+## Import Paths
+
+The SDK is organized into submodules for tree-shaking:
+
+| Import | Description |
+|--------|-------------|
+| `@datamate/sdk` | Core tracker helpers (track, flush, etc.) |
+| `@datamate/sdk/react` | React component and hooks |
+| `@datamate/sdk/vue` | Vue component and composables |
+| `@datamate/nuxt` | Nuxt module for Datamate tracking |
+| `@datamate/sdk/node` | Node.js server-side SDK |
+
+## Example: React/Next.js
+
+<CodeBlock language="tsx">
+  {`import { Datamate } from "@datamate/sdk/react";
+import { track } from "@datamate/sdk";
+
+// In your root layout
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        <Datamate
+          clientId={process.env.NEXT_PUBLIC_DATAMATE_CLIENT_ID!}
+          trackWebVitals
+          trackErrors
+        />
+        {children}
+      </body>
+    </html>
+  );
+}
+
+// In any component
+function SignupButton() {
+  return (
+    <button onClick={() => track("signup_clicked", { source: "header" })}>
+      Sign Up
+    </button>
+  );
+}`}
+</CodeBlock>
+
+## Example: Node.js
+
+<CodeBlock language="tsx">
+  {`import { Datamate } from "@datamate/sdk/node";
+
+const client = new Datamate({
+  apiKey: process.env.DATAMATE_API_KEY!,
+  websiteId: process.env.DATAMATE_WEBSITE_ID,
+  enableBatching: true
+});
+
+await client.track({
+  name: "api_call",
+  properties: { endpoint: "/api/users", method: "GET" }
+});
+
+await client.flush(); // Important in serverless!`}
+</CodeBlock>
+
+## TypeScript Support
+
+The SDK is fully typed with excellent TypeScript support:
+
+<CodeBlock language="tsx">
+  {`import { track, type DatamateTracker } from "@datamate/sdk";
+import type { DatamateConfig } from "@datamate/sdk/react";
+import type { CustomEventInput } from "@datamate/sdk/node";`}
+</CodeBlock>
+
+## Related Documentation
+
+<Cards>
+  <Card title="Getting Started" href="/docs/getting-started">
+    Quick setup guide and basic configuration
+  </Card>
+  <Card title="API Reference" href="/docs/api">
+    Direct HTTP API for custom implementations
+  </Card>
+  <Card title="Dashboard Guide" href="/docs/dashboard">
+    Navigate your analytics dashboard
+  </Card>
+</Cards>

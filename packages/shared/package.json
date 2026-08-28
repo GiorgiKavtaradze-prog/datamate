@@ -1,0 +1,48 @@
+{
+  "name": "@datamate/shared",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "exports": {
+    "./api-scopes": "./src/api-scopes.ts",
+    "./agent-discovery": "./src/agent-discovery.ts",
+    "./country-codes": "./src/country-codes.ts",
+    "./types/features": "./src/types/features.ts",
+    "./flags": "./src/flags/index.ts",
+    "./utils/referrer": "./src/utils/referrer.ts",
+    "./utils/trusted-client-ip": "./src/utils/trusted-client-ip.ts",
+    "./bot-detection": "./src/utils/bot-detection/index.ts",
+    "./bot-detection/detector": "./src/utils/bot-detection/detector.ts",
+    "./bot-detection/types": "./src/utils/bot-detection/types.ts",
+    "./bot-detection/user-agent": "./src/utils/bot-detection/user-agent.ts",
+    "./json-ld": "./src/json-ld.ts",
+    "./ssrf-guard": "./src/ssrf-guard.ts",
+    "./constants/deep-link-apps": "./src/constants/deep-link-apps.ts",
+    "./constants/links": "./src/constants/links.ts",
+    "./custom-events": "./src/custom-events.ts",
+    "./analytics-filters": "./src/analytics-filters.ts",
+    "./agent-credits": "./src/agent-credits.ts",
+    "./billing": "./src/billing.ts",
+    "./currency": "./src/currency.ts",
+    "./tracking-blocks": "./src/tracking-blocks.ts",
+    "./uptime": "./src/uptime.ts",
+    "./http-error-response": "./src/http-error-response.ts",
+    "./insights": "./src/insights.ts",
+    "./stripe-webhooks": "./src/stripe-webhooks.ts",
+    "./audit": "./src/audit.ts",
+    "./evlog-fields": "./src/evlog-fields.ts",
+    "./evlog-axiom": "./src/evlog-axiom.ts",
+    "./evlog-redaction": "./src/evlog-redaction.ts",
+    "./evlog-superlog": "./src/evlog-superlog.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "bun test src"
+  },
+  "dependencies": {
+    "evlog": "catalog:",
+    "ua-parser-js": "catalog:",
+    "undici": "^8.2.0",
+    "zod": "catalog:"
+  }
+}

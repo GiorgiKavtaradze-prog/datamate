@@ -1,0 +1,175 @@
+import type {
+	ChartCurveType,
+	ChartSeriesKind,
+} from "@/components/ui/composables/chart";
+import { usePersistentState } from "@datamate/ui";
+
+const CHART_PREFERENCES_STORAGE_KEY = "datamate-chart-preferences";
+
+/**
+ * Chart location identifiers - where charts appear in the app
+ */
+export type ChartLocation =
+	| "overview-stats" // Small stat cards on the overview tab (visitors, pageviews, etc.)
+	| "overview-main" // Large main chart on the overview tab
+	| "funnels" // Funnel analytics stat cards
+	| "website-list" // Mini charts on the websites list page
+	| "events"; // Events analytics stat cards
+
+export const CHART_LOCATIONS: ChartLocation[] = [
+	"overview-stats",
+	"overview-main",
+	"funnels",
+	"website-list",
+	"events",
+];
+
+export const CHART_LOCATION_LABELS: Record<ChartLocation, string> = {
+	"overview-stats": "Overview Stats",
+	"overview-main": "Overview Chart",
+	funnels: "Funnel Stats",
+	"website-list": "Website List",
+	events: "Events Stats",
+};
+
+export const CHART_LOCATION_DESCRIPTIONS: Record<ChartLocation, string> = {
+	"overview-stats": "Small stat cards showing visitors, pageviews, etc.",
+	"overview-main": "Large main chart on the overview tab",
+	funnels: "Stat cards in the funnel analytics section",
+	"website-list": "Mini charts on the websites list page",
+	events: "Stat cards in the events analytics section",
+};
+
+function isValidChartSeriesKind(value: unknown): value is ChartSeriesKind {
+	return (
+		typeof value === "string" &&
+		(value === "bar" || value === "line" || value === "area")
+	);
+}
+
+function isValidStepType(value: unknown): value is ChartCurveType {
+	return (
+		typeof value === "string" &&
+		(value === "monotone" ||
+			value === "linear" ||
+			value === "step" ||
+			value === "stepBefore" ||
+			value === "stepAfter")
+	);
+}
+
+interface LocationPreferences {
+	chartStepType: ChartCurveType;
+	chartType: ChartSeriesKind;
+}
+
+type AllPreferences = Partial<Record<ChartLocation, LocationPreferences>>;
+
+function isValidPreferences(value: unknown): value is AllPreferences {
+	if (typeof value !== "object" || value === null) {
+		return false;
+	}
+	return Object.entries(value).every(([key, val]) => {
+		if (!CHART_LOCATIONS.includes(key as ChartLocation)) {
+			return false;
+		}
+		if (typeof val !== "object" || val === null) {
+			return false;
+		}
+		return (
+			isValidChartSeriesKind(val.chartType) &&
+			isValidStepType(val.chartStepType)
+		);
+	});
+}
+
+const getDefaultPreferences = (): AllPreferences => {
+	const defaults: AllPreferences = {};
+	for (const location of CHART_LOCATIONS) {
+		defaults[location] = {
+			chartType: "area",
+			chartStepType: "monotone",
+		};
+	}
+	return defaults;
+};
+
+/**
+ * Hook to get chart preferences for a specific location
+ */
+export function useChartPreferences(location: ChartLocation) {
+	const [storedPreferences] = usePersistentState<AllPreferences>(
+		CHART_PREFERENCES_STORAGE_KEY,
+		getDefaultPreferences()
+	);
+
+	const allPreferences = isValidPreferences(storedPreferences)
+		? storedPreferences
+		: getDefaultPreferences();
+
+	const locationPrefs = allPreferences[location] ?? {
+		chartType: "area" as ChartSeriesKind,
+		chartStepType: "monotone" as ChartCurveType,
+	};
+
+	return {
+		chartType: locationPrefs.chartType,
+		chartStepType: locationPrefs.chartStepType,
+	};
+}
+
+/**
+ * Hook to get and update all chart preferences (for settings page)
+ */
+export function useAllChartPreferences() {
+	const [storedPreferences, setStoredPreferences] =
+		usePersistentState<AllPreferences>(
+			CHART_PREFERENCES_STORAGE_KEY,
+			getDefaultPreferences()
+		);
+
+	const allPreferences = isValidPreferences(storedPreferences)
+		? storedPreferences
+		: getDefaultPreferences();
+
+	const updateLocationPreferences = (
+		location: ChartLocation,
+		preferences: Partial<LocationPreferences>
+	) => {
+		setStoredPreferences((prev) => {
+			const current = isValidPreferences(prev) ? prev : getDefaultPreferences();
+			return {
+				...current,
+				[location]: {
+					...current[location],
+					...preferences,
+				},
+			};
+		});
+	};
+
+	const updateAllPreferences = (preferences: Partial<LocationPreferences>) => {
+		setStoredPreferences((prev) => {
+			const current = isValidPreferences(prev) ? prev : getDefaultPreferences();
+			const updated: AllPreferences = {};
+			for (const location of CHART_LOCATIONS) {
+				const currentLocation = current[location] ?? {
+					chartType: "area" as ChartSeriesKind,
+					chartStepType: "monotone" as ChartCurveType,
+				};
+				updated[location] = {
+					chartType: preferences.chartType ?? currentLocation.chartType,
+					chartStepType:
+						preferences.chartStepType ?? currentLocation.chartStepType,
+				};
+			}
+			return updated;
+		});
+	};
+
+	return {
+		preferences: allPreferences,
+		updateLocationPreferences,
+		updateAllPreferences,
+	};
+}

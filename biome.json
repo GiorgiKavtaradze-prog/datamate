@@ -1,0 +1,96 @@
+{
+  "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
+  "extends": [
+    "ultracite/biome/core",
+    "ultracite/biome/react",
+    "ultracite/biome/next"
+  ],
+  "files": {
+    "includes": [
+      "!**/*.md",
+      "!**/*.svg",
+      "!**/*.test.ts",
+      "!**/*.spec.ts",
+      "!**/ui/**/*.tsx",
+      "!.fablize",
+      "!apps/dashboard/public/subdivisions.json"
+    ]
+  },
+  "javascript": {
+    "formatter": {
+      "indentStyle": "tab",
+      "indentWidth": 2
+    },
+    "globals": ["chrome"]
+  },
+  "overrides": [
+    {
+      "includes": ["apps/basket/**/*.ts", "apps/api/**/*.ts"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "useHookAtTopLevel": "off"
+          }
+        }
+      }
+    },
+    {
+      "includes": ["packages/nuxt/playground/**/*.vue"],
+      "linter": {
+        "rules": {
+          "correctness": {
+            "noUndeclaredVariables": "off",
+            "noUnusedVariables": "off",
+            "useHookAtTopLevel": "off"
+          },
+          "suspicious": {
+            "noEmptySource": "off"
+          }
+        }
+      }
+    }
+  ],
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "off",
+        "useSortedAttributes": "off"
+      }
+    }
+  },
+  "linter": {
+    "rules": {
+      "suspicious": {
+        "noConsole": "off",
+        "noExplicitAny": "off",
+        "noEmptyBlockStatements": "off",
+        "noArrayIndexKey": "off",
+        "noDocumentCookie": "off",
+        "noShadow": "off"
+      },
+      "style": {
+        "noNestedTernary": "off",
+        "useFilenamingConvention": "off",
+        "noMagicNumbers": "off",
+        "useReadonlyClassProperties": "off"
+      },
+      "complexity": {
+        "noExcessiveCognitiveComplexity": "off",
+        "useOptionalChain": "off"
+      },
+      "performance": {
+        "noImgElement": "off",
+        "noBarrelFile": "off"
+      },
+      "correctness": {
+        "useExhaustiveDependencies": "off"
+      },
+      "a11y": {
+        "noStaticElementInteractions": "off"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
+      }
+    }
+  }
+}

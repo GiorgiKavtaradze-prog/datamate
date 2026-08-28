@@ -1,0 +1,4 @@
+interface:
+  display_name: "Datamate"
+  short_description: "Integrate Datamate tracking and flags"
+  default_prompt: "Use $datamate to integrate tracking, feature flags, DevTools, and useful custom events in my app."

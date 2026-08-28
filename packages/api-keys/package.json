@@ -1,0 +1,23 @@
+{
+  "name": "@datamate/api-keys",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./scopes": "./src/scopes.ts",
+    "./resolve": "./src/resolve.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "bun test src"
+  },
+  "dependencies": {
+    "@datamate/db": "workspace:*",
+    "@datamate/redis": "workspace:*",
+    "@datamate/shared": "workspace:*",
+    "keypal": "0.2.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

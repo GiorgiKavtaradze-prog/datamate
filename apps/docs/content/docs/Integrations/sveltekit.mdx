@@ -1,0 +1,399 @@
+---
+title: SvelteKit
+description: Add privacy-first analytics to your SvelteKit application
+---
+
+import { Steps, Step } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { CodeBlock } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+This guide explains how to integrate Datamate with your SvelteKit application for analytics tracking.
+
+## How to Add Datamate to Your SvelteKit App
+
+The recommended method for SvelteKit is to add the Datamate tracking script directly to your `src/app.html` file. This ensures the script is loaded early on all pages.
+
+### Adding to `src/app.html`
+
+<Steps>
+  <Step title="Get Your Tracking Script">
+    Navigate to your [Datamate dashboard](https://app.datamate.cc) to get your tracking code snippet:
+
+    <CodeBlock
+      language="html"
+      code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  async
+></script>`}
+    />
+
+    Replace `YOUR_CLIENT_ID` with your actual Client ID.
+  </Step>
+
+  <Step title="Locate Your app.html File">
+    In a SvelteKit project, this file is typically located at `src/app.html`.
+  </Step>
+
+  <Step title="Add the Snippet to app.html">
+    Open `src/app.html` and paste the Datamate tracking snippet into the `<head>` section, usually before `%sveltekit.head%` or just after it.
+
+    <CodeBlock
+      language="html"
+      filename="src/app.html"
+      code={`<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%sveltekit.assets%/favicon.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <!-- Datamate Tracking Snippet -->
+    <script
+      src="https://cdn.datamate.cc/datamate.js"
+      data-client-id="YOUR_CLIENT_ID"
+      async
+    ></script>
+    %sveltekit.head%
+  </head>
+  <body data-sveltekit-preload-data="hover">
+    <div style="display: contents">%sveltekit.body%</div>
+  </body>
+</html>`}
+    />
+
+    Ensure `YOUR_CLIENT_ID` is replaced with your actual Client ID.
+  </Step>
+
+  <Step title="Verify Installation">
+    Deploy your application and check your [Datamate dashboard](https://app.datamate.cc) for incoming data. You can also inspect your browser's network tab to confirm the script is loaded.
+  </Step>
+</Steps>
+
+<Callout type="info">
+  **SPA Page View Tracking**: Datamate automatically tracks route changes in SvelteKit applications. If page views aren't tracked correctly after navigation (which is uncommon), you can manually trigger them using the `afterNavigate` lifecycle function:
+
+  <CodeBlock
+    language="svelte"
+    code={`// In a layout or page component
+import { afterNavigate } from '$app/navigation';
+
+afterNavigate(() => {
+  if (typeof window !== 'undefined' && window.datamate) {
+    window.datamate.screenView({
+      path: window.location.pathname
+    });
+  }
+});`}
+  />
+
+  Test the default behavior first, as manual tracking is usually not needed.
+</Callout>
+
+## Custom Event Tracking
+
+Track custom events from any Svelte component within your SvelteKit app:
+
+<CodeBlock
+  language="svelte"
+  code={`<script>
+  function handleAction() {
+    if (typeof window !== 'undefined' && window.datamate) {
+      window.datamate.track('button_click', {
+        component: 'MySvelteKitComponent',
+        button_id: 'cta-button'
+      });
+    }
+  }
+</script>
+
+<button on:click={handleAction}>
+  Perform Action
+</button>`}
+/>
+
+Always check `typeof window !== 'undefined'` before accessing `window.datamate` as SvelteKit components can also run on the server during SSR.
+
+## Tracking Route Changes
+
+For more control over route tracking, use SvelteKit's navigation lifecycle:
+
+<CodeBlock
+  language="svelte"
+  filename="src/routes/+layout.svelte"
+  code={`<script>
+  import { afterNavigate } from '$app/navigation';
+  import { page } from '$app/stores';
+  
+  afterNavigate(() => {
+    if (typeof window !== 'undefined' && window.datamate) {
+      window.datamate.screenView({
+        path: $page.url.pathname,
+        search: $page.url.search
+      });
+    }
+  });
+</script>
+
+<slot />`}
+/>
+
+## Using Data Attributes
+
+Enable automatic tracking with data attributes by adding this to your script tag:
+
+<CodeBlock
+  language="html"
+  code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-track-attributes
+  async
+></script>`}
+/>
+
+Then add `data-track` attributes directly to elements in your Svelte components:
+
+<CodeBlock
+  language="svelte"
+  code={`<button 
+  data-track="cta_click" 
+  data-button-type="primary"
+  on:click={handleClick}
+>
+  Get Started
+</button>
+
+<a 
+  href="/pricing" 
+  data-track="pricing_link_click"
+  data-link-location="header"
+>
+  View Pricing
+</a>`}
+/>
+
+## Configuration Options
+
+Enable additional tracking features:
+
+<CodeBlock
+  language="html"
+  code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-track-attributes
+  data-track-outgoing-links
+  data-track-interactions
+  data-track-web-vitals
+  data-track-errors
+  async
+></script>`}
+/>
+
+## Common Use Cases
+
+### Form Submissions
+
+Track form submissions in SvelteKit:
+
+<CodeBlock
+  language="svelte"
+  code={`<script>
+  import { enhance } from '$app/forms';
+  
+  function handleSubmit() {
+    if (typeof window !== 'undefined' && window.datamate) {
+      window.datamate.track('form_submit', {
+        form_type: 'contact',
+        form_id: 'contact-form'
+      });
+    }
+  }
+</script>
+
+<form method="POST" use:enhance={handleSubmit}>
+  <!-- form fields -->
+  <button type="submit">Submit</button>
+</form>`}
+/>
+
+### Server Actions
+
+Track events from server actions:
+
+<CodeBlock
+  language="typescript"
+  filename="src/routes/contact/+page.server.ts"
+  code={`import { fail } from '@sveltejs/kit';
+import type { Actions } from './$types';
+
+export const actions: Actions = {
+  default: async ({ request }) => {
+    const data = await request.formData();
+    
+    // Your form processing logic here
+    
+    // Note: Server-side tracking requires the Node SDK
+    // Client-side tracking happens automatically via the script tag
+    
+    return { success: true };
+  }
+};`}
+/>
+
+Then track on the client side after successful submission:
+
+<CodeBlock
+  language="svelte"
+  code={`<script>
+  import { enhance } from '$app/forms';
+  
+  function handleResult({ result }) {
+    if (result.type === 'success' && typeof window !== 'undefined' && window.datamate) {
+      window.datamate.track('form_submit_success', {
+        form_type: 'contact'
+      });
+    }
+  }
+</script>
+
+<form method="POST" use:enhance={handleResult}>
+  <!-- form fields -->
+</form>`}
+/>
+
+### Page-Specific Tracking
+
+Track events on specific pages:
+
+<CodeBlock
+  language="svelte"
+  filename="src/routes/pricing/+page.svelte"
+  code={`<script>
+  import { onMount } from 'svelte';
+  
+  onMount(() => {
+    if (typeof window !== 'undefined' && window.datamate) {
+      window.datamate.track('pricing_page_view', {
+        page_path: window.location.pathname
+      });
+    }
+  });
+  
+  function trackPlanClick(planName) {
+    if (typeof window !== 'undefined' && window.datamate) {
+      window.datamate.track('plan_clicked', {
+        plan_name: planName,
+        page_path: window.location.pathname
+      });
+    }
+  }
+</script>
+
+<button on:click={() => trackPlanClick('pro')}>
+  Choose Pro Plan
+</button>`}
+/>
+
+## Server-Side Tracking
+
+For server-side tracking in SvelteKit, use the Datamate Node SDK:
+
+<CodeBlock
+  language="bash"
+  code={`# Install the Node SDK
+npm install @datamate/sdk`}
+/>
+
+<CodeBlock
+  language="typescript"
+  filename="src/lib/datamate.ts"
+  code={`import { Datamate } from '@datamate/sdk/node';
+import { DATAMATE_API_KEY, DATAMATE_WEBSITE_ID } from '$env/static/private';
+
+export const datamate = new Datamate({
+  apiKey: DATAMATE_API_KEY,
+  websiteId: DATAMATE_WEBSITE_ID
+});
+
+// Track server-side events
+export async function trackServerEvent(name: string, properties?: Record<string, unknown>) {
+  await datamate.track({
+    name,
+    properties,
+    anonymousId: 'server-event', // Use an appropriate identifier
+    source: 'server'
+  });
+
+  await datamate.flush();
+}`}
+/>
+
+## Environment Variables
+
+Store your Client ID and server API key in environment variables:
+
+<CodeBlock
+  language="bash"
+  filename=".env"
+  code={`PUBLIC_DATAMATE_CLIENT_ID=your-client-id-here
+DATAMATE_API_KEY=your-api-key-here
+DATAMATE_WEBSITE_ID=your-client-id-here`}
+/>
+
+Then use them in your code:
+
+<CodeBlock
+  language="html"
+  filename="src/app.html"
+  code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="%env.PUBLIC_DATAMATE_CLIENT_ID%"
+  async
+></script>`}
+/>
+
+## Troubleshooting
+
+### Script Not Loading
+
+- Verify the script is in `src/app.html` in the `<head>` section
+- Check browser console for errors
+- Ensure your Client ID is correct
+- Clear browser cache and reload
+
+### Events Not Tracking
+
+- Confirm `window.datamate` exists before calling tracking methods
+- Always check `typeof window !== 'undefined'` for SSR safety
+- Check browser console for any errors
+- Verify events appear in your Datamate dashboard after 2-3 minutes
+
+### Route Changes Not Tracked
+
+- Datamate automatically tracks route changes in SvelteKit
+- If needed, use `afterNavigate` from `$app/navigation` for manual tracking
+- Check that SvelteKit's client-side navigation is working correctly
+
+### SSR Issues
+
+- Never call `window.datamate` during SSR (server-side rendering)
+- Always wrap tracking calls in `typeof window !== 'undefined'` checks
+- Use `onMount` or `afterNavigate` for client-only tracking
+
+## Related Integrations
+
+<Cards>
+  <Card title="Svelte" href="/docs/Integrations/svelte">
+    Lightweight Svelte integration for client-side apps.
+  </Card>
+  <Card title="Next.js" href="/docs/Integrations/nextjs">
+    App Router and Pages Router support with SSR.
+  </Card>
+  <Card title="React" href="/docs/Integrations/react">
+    TypeScript support with React hooks and components.
+  </Card>
+</Cards>
+
+Need help with your SvelteKit integration? Contact us at [support@datamate.cc](mailto:support@datamate.cc).

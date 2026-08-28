@@ -1,0 +1,69 @@
+min_version: 2.1.0
+glob_matcher: doublestar
+
+output:
+  - summary
+  - failure
+  - execution_out
+
+pre-commit:
+  parallel: true
+  commands:
+    no-secrets:
+      glob:
+        - "**/.env"
+        - "**/.env.*"
+        - "**/*.pem"
+        - "**/*.key"
+        - "**/*.p12"
+        - "**/*.pfx"
+        - "**/*.keystore"
+        - "**/id_rsa"
+        - "**/id_ed25519"
+        - "**/credentials.json"
+      run: |
+        blocked_files="$(echo "{staged_files}" | tr ' ' '\n' | grep -vE '(^|/)\.env\.example$' || true)"
+        [ -z "$blocked_files" ] || (echo "Blocked: staged file(s) may contain secrets:" && echo "$blocked_files" | sed 's/^/  - /' && exit 1)
+    check-types:
+      glob:
+        - "**/*.{ts,tsx}"
+        - "packages/db/src/clickhouse/schema/**/*.sql"
+      run: |
+        set -e
+        if git diff --cached --name-only | grep -qE '^packages/db/src/clickhouse/schema/.*\.sql$'; then
+          bun run generate-db
+          git add packages/db/src/clickhouse/schema/tables.generated.ts
+        fi
+        bun run check-types
+    policy-lint:
+      glob:
+        - "apps/dashboard/**/*.{css,ts,tsx}"
+        - "apps/api/**/*.{ts,tsx}"
+        - "apps/basket/**/*.{ts,tsx}"
+        - "apps/links/**/*.{ts,tsx}"
+        - "apps/uptime/**/*.{ts,tsx}"
+        - "scripts/lint-policy.ts"
+      run: bun scripts/lint-policy.ts --staged
+    format:
+      glob:
+        - "**/*.{ts,tsx,js,jsx,mjs,cjs,json,jsonc,css}"
+      run: bunx ultracite check {staged_files}
+      fail_text: "Formatting/lint issues found. Run: bun run format"
+    lockfile-check:
+      glob:
+        - "**/package.json"
+        - "bun.lock"
+      run: bun install --frozen-lockfile
+      fail_text: "bun.lock is out of sync with package.json. Run: bun install && git add bun.lock"
+
+commit-msg:
+  commands:
+    enforce-format:
+      run: bun scripts/enforce-commit-format.ts {1}
+
+pre-push:
+  parallel: true
+  commands:
+    test:
+      glob: "**/*.{ts,tsx}"
+      run: bun run test

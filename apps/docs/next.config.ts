@@ -1,0 +1,247 @@
+import { withBotId } from "botid/next/config";
+import { createMDX } from "fumadocs-mdx/next";
+import type { NextConfig } from "next";
+
+const withMDX = createMDX();
+
+const APP_URL = "https://app.datamate.cc";
+const AGENT_LINK_HEADER =
+	'</sitemap.xml>; rel="sitemap", </index.md>; rel="alternate"; type="text/markdown", </openapi.json>; rel="service-desc"; type="application/vnd.oai.openapi+json;version=3.1", </.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"';
+
+const config: NextConfig = {
+	reactStrictMode: true,
+	transpilePackages: ["@datamate/ui"],
+	async headers() {
+		return await [
+			{
+				source: "/(.*)",
+				headers: [
+					{
+						key: "X-Content-Type-Options",
+						value: "nosniff",
+					},
+					{
+						key: "X-Frame-Options",
+						value: "DENY",
+					},
+					{
+						key: "X-XSS-Protection",
+						value: "1; mode=block",
+					},
+					{
+						key: "Referrer-Policy",
+						value: "strict-origin-when-cross-origin",
+					},
+					{
+						key: "X-Robots-Tag",
+						value:
+							"index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1",
+					},
+					{
+						key: "Link",
+						value: AGENT_LINK_HEADER,
+					},
+				],
+			},
+			{
+				source: "/",
+				headers: [
+					{
+						key: "Vary",
+						value: "Accept, Accept-Encoding",
+					},
+				],
+			},
+			{
+				source: "/docs/:path*",
+				headers: [
+					{
+						key: "Cache-Control",
+						value: "public, max-age=3600, must-revalidate",
+					},
+				],
+			},
+		];
+	},
+
+	rewrites: async () => ({
+		beforeFiles: [
+			{
+				source: "/docs/:path*.md",
+				destination: "/api/docs/raw/:path*",
+			},
+			{
+				source: "/docs/:path*",
+				destination: "/api/docs/raw/:path*",
+				has: [
+					{
+						type: "header",
+						key: "Accept",
+						value: ".*text/markdown.*",
+					},
+				],
+			},
+		],
+		afterFiles: [],
+		fallback: [],
+	}),
+
+	async redirects() {
+		return await [
+			{
+				source: "/documentation/:path*",
+				destination: "/docs/:path*",
+				permanent: true,
+			},
+			{
+				source: "/guide/:path*",
+				destination: "/docs/:path*",
+				permanent: true,
+			},
+			{
+				source: "/docs/docs/:path*",
+				destination: "/docs/:path*",
+				permanent: true,
+			},
+			{
+				source: "/register",
+				destination: `${APP_URL}/register`,
+				permanent: false,
+			},
+			{
+				source: "/signup",
+				destination: `${APP_URL}/register`,
+				permanent: false,
+			},
+			{
+				source: "/sign-up",
+				destination: `${APP_URL}/register`,
+				permanent: false,
+			},
+			{
+				source: "/auth/register",
+				destination: `${APP_URL}/register`,
+				permanent: false,
+			},
+			{
+				source: "/auth/signup",
+				destination: `${APP_URL}/register`,
+				permanent: false,
+			},
+			{
+				source: "/auth/sign-up",
+				destination: `${APP_URL}/register`,
+				permanent: false,
+			},
+			{
+				source: "/login",
+				destination: `${APP_URL}/login`,
+				permanent: false,
+			},
+			{
+				source: "/signin",
+				destination: `${APP_URL}/login`,
+				permanent: false,
+			},
+			{
+				source: "/sign-in",
+				destination: `${APP_URL}/login`,
+				permanent: false,
+			},
+			{
+				source: "/auth/login",
+				destination: `${APP_URL}/login`,
+				permanent: false,
+			},
+			{
+				source: "/auth/signin",
+				destination: `${APP_URL}/login`,
+				permanent: false,
+			},
+			{
+				source: "/auth/sign-in",
+				destination: `${APP_URL}/login`,
+				permanent: false,
+			},
+			{
+				source: "/app",
+				destination: APP_URL,
+				permanent: false,
+			},
+			{
+				source: "/app/:path*",
+				destination: `${APP_URL}/:path*`,
+				permanent: false,
+			},
+			{
+				source: "/dashboard",
+				destination: APP_URL,
+				permanent: false,
+			},
+			{
+				source: "/dashboard/:path*",
+				destination: `${APP_URL}/:path*`,
+				permanent: false,
+			},
+			{
+				source: "/twitter",
+				destination: "https://x.com/trydatamate",
+				permanent: true,
+			},
+			{
+				source: "/x",
+				destination: "https://x.com/trydatamate",
+				permanent: true,
+			},
+			{
+				source: "/discord",
+				destination: "https://discord.gg/JTk7a38tCZ",
+				permanent: true,
+			},
+		];
+	},
+
+	images: {
+		remotePatterns: [
+			{
+				protocol: "https" as const,
+				hostname: "www.google.com",
+			},
+			{
+				protocol: "https" as const,
+				hostname: "images.marblecms.com",
+			},
+			{
+				protocol: "https" as const,
+				hostname: "media.marblecms.com",
+			},
+			{
+				protocol: "https" as const,
+				hostname: "lh3.googleusercontent.com",
+			},
+			{
+				protocol: "https" as const,
+				hostname: "avatars.githubusercontent.com",
+			},
+			{
+				protocol: "https" as const,
+				hostname: "pbs.twimg.com",
+			},
+			{
+				protocol: "https" as const,
+				hostname: "api.producthunt.com",
+			},
+		],
+		minimumCacheTTL: 60 * 60 * 24 * 30,
+	},
+
+	experimental: {
+		optimizePackageImports: [
+			"@datamate/ui/icons",
+			"fumadocs-ui",
+			"@datamate/ui",
+		],
+	},
+};
+
+export default withBotId(withMDX(config));

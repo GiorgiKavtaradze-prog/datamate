@@ -1,0 +1,962 @@
+import { logger } from "@/logger";
+import {
+	cacheKeyBelongsToContext,
+	buildEvaluationRequest,
+	DEFAULT_RESULT,
+	fetchAllFlags as fetchAllFlagsApi,
+	getCacheContext,
+	getCacheKey,
+	getFlagKey,
+	RequestBatcher,
+	FlagsContextChangedError,
+	FlagsRequestError,
+} from "./shared";
+import type {
+	FlagResult,
+	FlagsConfig,
+	FlagsManager,
+	FlagsManagerOptions,
+	FlagsRequestFailure,
+	FlagsSnapshot,
+	FlagState,
+	StorageInterface,
+	UserContext,
+} from "./types";
+
+const ANON_ID_KEY = "did";
+const OVERRIDES_KEY = "datamate:flag-overrides:v1";
+const DEFAULT_API = "https://api.datamate.cc";
+const DEFAULT_MAX_CACHE_SIZE = 5000;
+
+interface CacheEntry {
+	expiresAt: number;
+	promise: Promise<FlagResult>;
+	refreshing: boolean;
+	result: FlagResult | null;
+	staleAt: number;
+}
+
+function resolved(
+	result: FlagResult,
+	ttl: number,
+	staleTime: number
+): CacheEntry {
+	const now = Date.now();
+	return {
+		promise: Promise.resolve(result),
+		refreshing: false,
+		result,
+		expiresAt: now + ttl,
+		staleAt: now + staleTime,
+	};
+}
+
+function isStale(entry: CacheEntry): boolean {
+	return Date.now() > entry.staleAt;
+}
+
+export abstract class BaseFlagsManager implements FlagsManager {
+	protected config: FlagsConfig;
+	protected readonly storage?: StorageInterface;
+
+	private readonly cache = new Map<string, CacheEntry>();
+	protected readonly overrides = new Map<string, FlagResult>();
+	private readonly batchers = new Map<string, RequestBatcher>();
+	private ready = false;
+	private readonly listeners = new Set<() => void>();
+	private snapshot: FlagsSnapshot = {
+		flags: {},
+		isReady: false,
+		lastError: null,
+	};
+	private lastError: FlagsRequestFailure | null = null;
+	private contextGeneration = 0;
+
+	constructor(options: FlagsManagerOptions) {
+		this.config = {
+			apiUrl: DEFAULT_API,
+			disabled: false,
+			debug: false,
+			autoFetch: true,
+			cacheTtl: 60_000,
+			maxCacheSize: DEFAULT_MAX_CACHE_SIZE,
+			staleTime: 30_000,
+			...options.config,
+		};
+		this.storage = options.storage;
+		logger.setDebug(this.config.debug ?? false);
+	}
+
+	protected shouldSkipFetch(): boolean {
+		return false;
+	}
+
+	protected onCacheUpdated(): void {}
+
+	protected onContextCleared(): void {}
+
+	protected onFlagEvaluated(_key: string, _result: FlagResult): void {}
+
+	protected async runInit(): Promise<void> {
+		if (this.storage && !this.config.skipStorage) {
+			this.hydrate();
+		}
+		if (this.config.autoFetch && !this.config.isPending) {
+			await this.fetchAllFlags();
+		}
+		this.ready = true;
+		this.emit();
+	}
+
+	private hydrate(): void {
+		if (!this.storage) {
+			return;
+		}
+		try {
+			const stored = this.storage.getAll();
+			const { ttl, stale } = this.ttls();
+			let discarded = false;
+			for (const [key, value] of Object.entries(stored)) {
+				if (value && typeof value === "object" && this.cacheKeyIsActive(key)) {
+					this.setCache(key, resolved(value, ttl, stale));
+				} else {
+					discarded = true;
+				}
+			}
+			if (discarded) {
+				if (this.cache.size > 0) {
+					this.persist();
+				} else {
+					this.storage.clear();
+				}
+			}
+			if (this.cache.size > 0) {
+				this.emit();
+			}
+		} catch (err) {
+			logger.warn("Failed to load from storage:", err);
+		}
+	}
+
+	protected persist(): void {
+		if (!(this.storage && !this.config.skipStorage)) {
+			return;
+		}
+		try {
+			const flags: Record<string, FlagResult> = {};
+			for (const [key, entry] of this.cache) {
+				if (entry.result && this.cacheKeyIsActive(key)) {
+					flags[key] = entry.result;
+				}
+			}
+			this.storage.setAll(flags);
+		} catch (err) {
+			logger.warn("Failed to save to storage:", err);
+		}
+	}
+
+	private ttls() {
+		const ttl = this.config.cacheTtl ?? 60_000;
+		return { ttl, stale: this.config.staleTime ?? ttl / 2 };
+	}
+
+	private validEntry(cacheKey: string): CacheEntry | null {
+		const entry = this.cache.get(cacheKey);
+		if (!entry) {
+			return null;
+		}
+		if (Date.now() <= entry.expiresAt || entry.result) {
+			return entry;
+		}
+		this.cache.delete(cacheKey);
+		return null;
+	}
+
+	private setCache(cacheKey: string, entry: CacheEntry): void {
+		this.cache.set(cacheKey, entry);
+		this.pruneCache();
+	}
+
+	private pruneCache(): void {
+		const maxCacheSize = Math.max(
+			0,
+			Math.floor(this.config.maxCacheSize ?? DEFAULT_MAX_CACHE_SIZE)
+		);
+		if (maxCacheSize === 0) {
+			this.cache.clear();
+			return;
+		}
+
+		const now = Date.now();
+		for (const [key, entry] of this.cache) {
+			if (now > entry.expiresAt && !entry.result) {
+				this.cache.delete(key);
+			}
+		}
+
+		while (this.cache.size > maxCacheSize) {
+			const oldest = this.cache.keys().next().value;
+			if (oldest === undefined) {
+				return;
+			}
+			this.cache.delete(oldest);
+		}
+	}
+
+	private ensureBatcher(user?: UserContext): RequestBatcher {
+		const request = buildEvaluationRequest(this.config, user);
+		const batcherKey = getCacheKey(
+			this.config.apiUrl ?? DEFAULT_API,
+			user ?? this.config.user,
+			this.config.environment,
+			this.config.clientId
+		);
+		const existing = this.batchers.get(batcherKey);
+		if (existing) {
+			return existing;
+		}
+
+		const batcher = new RequestBatcher(
+			this.config.apiUrl ?? DEFAULT_API,
+			request,
+			this.batchDelay(),
+			() => {
+				if (this.batchers.get(batcherKey) === batcher) {
+					this.batchers.delete(batcherKey);
+				}
+			}
+		);
+		this.batchers.set(batcherKey, batcher);
+		return batcher;
+	}
+
+	protected batchDelay(): number {
+		return 10;
+	}
+
+	private pruneStaleKeys(
+		validKeys: Set<string>,
+		user?: UserContext,
+		environment = this.config.environment,
+		clientId = this.config.clientId
+	): void {
+		for (const key of this.cache.keys()) {
+			if (
+				cacheKeyBelongsToContext(key, user, environment, clientId) &&
+				!validKeys.has(key)
+			) {
+				this.cache.delete(key);
+			}
+		}
+	}
+
+	private revalidate(key: string, cacheKey: string, user?: UserContext): void {
+		const existing = this.cache.get(cacheKey);
+		if (existing?.refreshing || (existing && !existing.result)) {
+			return;
+		}
+
+		const { ttl, stale } = this.ttls();
+		const requestGeneration = this.contextGeneration;
+		const promise = this.ensureBatcher(user).request(key);
+
+		this.setCache(cacheKey, {
+			promise,
+			refreshing: true,
+			result: existing?.result ?? null,
+			expiresAt: existing?.expiresAt ?? Date.now() + ttl,
+			staleAt: existing?.staleAt ?? Date.now() + stale,
+		});
+
+		promise
+			.then((result) => {
+				if (!this.requestGenerationIsCurrent(requestGeneration)) {
+					return;
+				}
+				this.lastError = null;
+				this.setCache(cacheKey, resolved(result, ttl, stale));
+				this.emit();
+				this.onCacheUpdated();
+			})
+			.catch((err) => {
+				if (!this.requestGenerationIsCurrent(requestGeneration)) {
+					return;
+				}
+				const failed = this.cache.get(cacheKey);
+				if (failed?.result) {
+					this.setCache(cacheKey, {
+						...failed,
+						refreshing: false,
+						expiresAt: Date.now() + ttl,
+						staleAt: Date.now() + Math.min(stale, 5000),
+					});
+				}
+				if (err instanceof FlagsContextChangedError) {
+					this.revalidate(key, cacheKey, user);
+					return;
+				}
+				this.captureError(err);
+				logger.error(`Revalidation error: ${key}`, err);
+			});
+	}
+
+	async getFlag(key: string, user?: UserContext): Promise<FlagResult> {
+		const override = this.overrides.get(key);
+		if (override) {
+			return override;
+		}
+		if (this.config.disabled) {
+			return DEFAULT_RESULT;
+		}
+		if (this.config.isPending) {
+			return { ...DEFAULT_RESULT, reason: "SESSION_PENDING" };
+		}
+
+		const cacheKey = getCacheKey(
+			key,
+			user ?? this.config.user,
+			this.config.environment,
+			this.config.clientId
+		);
+		const entry = this.validEntry(cacheKey);
+
+		if (entry) {
+			if (isStale(entry) && !this.shouldSkipFetch()) {
+				this.revalidate(key, cacheKey, user);
+			}
+			if (entry.result) {
+				this.onFlagEvaluated(key, entry.result);
+				return entry.result;
+			}
+			return this.awaitPendingFlag(
+				key,
+				user,
+				entry.promise,
+				this.contextGeneration
+			);
+		}
+
+		const pending = this.cache.get(cacheKey);
+		if (pending) {
+			return this.awaitPendingFlag(
+				key,
+				user,
+				pending.promise,
+				this.contextGeneration
+			);
+		}
+
+		const { ttl, stale } = this.ttls();
+		const requestGeneration = this.contextGeneration;
+		const promise = this.ensureBatcher(user).request(key);
+
+		this.setCache(cacheKey, {
+			promise,
+			refreshing: true,
+			result: null,
+			expiresAt: Date.now() + ttl,
+			staleAt: Date.now() + stale,
+		});
+
+		try {
+			const result = await promise;
+			if (!this.requestGenerationIsCurrent(requestGeneration)) {
+				return this.getFlag(key, user);
+			}
+			this.lastError = null;
+			this.setCache(cacheKey, resolved(result, ttl, stale));
+			this.emit();
+			this.onCacheUpdated();
+			this.onFlagEvaluated(key, result);
+			return result;
+		} catch (err) {
+			if (
+				!this.requestGenerationIsCurrent(requestGeneration) ||
+				err instanceof FlagsContextChangedError
+			) {
+				const stale = this.cache.get(cacheKey);
+				if (stale?.promise === promise && !stale.result) {
+					this.cache.delete(cacheKey);
+				}
+				return this.getFlag(key, user);
+			}
+			this.captureError(err);
+			if (!this.cache.get(cacheKey)?.result) {
+				this.cache.delete(cacheKey);
+			}
+			throw err;
+		}
+	}
+
+	async fetchAllFlags(
+		user?: UserContext,
+		options?: { force?: boolean }
+	): Promise<void> {
+		if (!options?.force && (this.config.disabled || this.config.isPending)) {
+			return;
+		}
+		if (!options?.force && this.shouldSkipFetch() && this.cache.size > 0) {
+			return;
+		}
+
+		const requestUser = user ?? this.config.user;
+		const requestEnvironment = this.config.environment;
+		const requestClientId = this.config.clientId;
+		const requestContext = getCacheContext(
+			requestUser,
+			requestEnvironment,
+			requestClientId
+		);
+		const requestGeneration = this.contextGeneration;
+		const tracksActiveContext = user === undefined;
+		const request = buildEvaluationRequest(this.config, requestUser);
+		const { ttl, stale } = this.ttls();
+
+		try {
+			const flags = await fetchAllFlagsApi(
+				this.config.apiUrl ?? DEFAULT_API,
+				request
+			);
+			if (
+				requestGeneration !== this.contextGeneration ||
+				(tracksActiveContext && requestContext !== this.activeCacheContext())
+			) {
+				return;
+			}
+			this.lastError = null;
+			const entries = Object.entries(flags).map(([key, result]) => ({
+				cacheKey: getCacheKey(
+					key,
+					requestUser,
+					requestEnvironment,
+					requestClientId
+				),
+				entry: resolved(result, ttl, stale),
+			}));
+
+			this.pruneStaleKeys(
+				new Set(entries.map(({ cacheKey }) => cacheKey)),
+				requestUser,
+				requestEnvironment,
+				requestClientId
+			);
+
+			for (const { cacheKey, entry } of entries) {
+				this.setCache(cacheKey, entry);
+			}
+
+			this.ready = true;
+			this.emit();
+			this.onCacheUpdated();
+		} catch (err) {
+			if (
+				requestGeneration !== this.contextGeneration ||
+				(tracksActiveContext && requestContext !== this.activeCacheContext())
+			) {
+				return;
+			}
+			this.captureError(err);
+			logger.error("Bulk fetch error:", err);
+		}
+	}
+
+	isEnabled(key: string): FlagState {
+		const override = this.overrides.get(key);
+		if (override) {
+			return {
+				on: override.enabled,
+				status: "ready",
+				loading: false,
+				value: override.value,
+				variant: override.variant,
+			};
+		}
+		const cacheKey = getCacheKey(
+			key,
+			this.config.user,
+			this.config.environment,
+			this.config.clientId
+		);
+		const entry = this.validEntry(cacheKey);
+
+		if (entry?.result) {
+			if (isStale(entry) && !this.shouldSkipFetch()) {
+				this.revalidate(key, cacheKey, this.config.user);
+			}
+			this.onFlagEvaluated(key, entry.result);
+			return {
+				on: entry.result.enabled,
+				status: entry.result.reason === "ERROR" ? "error" : "ready",
+				loading: false,
+				value: entry.result.value,
+				variant: entry.result.variant,
+			};
+		}
+
+		if (!entry) {
+			this.getFlag(key).catch((err) =>
+				logger.error(`Background fetch error: ${key}`, err)
+			);
+		}
+
+		return { on: false, status: "loading", loading: true };
+	}
+
+	getValue<T = boolean>(key: string, defaultValue?: T): T {
+		const override = this.overrides.get(key);
+		if (override) {
+			return override.value as T;
+		}
+		const cacheKey = getCacheKey(
+			key,
+			this.config.user,
+			this.config.environment,
+			this.config.clientId
+		);
+		const entry = this.validEntry(cacheKey);
+
+		if (entry?.result) {
+			if (isStale(entry) && !this.shouldSkipFetch()) {
+				this.revalidate(key, cacheKey, this.config.user);
+			}
+			this.onFlagEvaluated(key, entry.result);
+			return entry.result.value as T;
+		}
+
+		if (!entry) {
+			this.getFlag(key).catch((err) =>
+				logger.error(`Background fetch error: ${key}`, err)
+			);
+		}
+
+		return (defaultValue ?? this.config.defaults?.[key] ?? false) as T;
+	}
+
+	updateUser(user: UserContext): void {
+		const nextUser = this.enrichUser(user);
+		const contextChanged = this.activeContextChanged(
+			nextUser,
+			this.config.environment,
+			this.config.clientId
+		);
+		this.config = { ...this.config, user: nextUser };
+		if (contextChanged) {
+			this.clearActiveContextState();
+			this.emit();
+		}
+		this.resetBatchers(new FlagsContextChangedError());
+		this.refresh().catch((err) => logger.error("Refresh error:", err));
+	}
+
+	async refresh(
+		forceClear = false,
+		options?: { force?: boolean }
+	): Promise<void> {
+		if (forceClear) {
+			this.clearActiveContextState();
+			this.resetBatchers(new FlagsContextChangedError());
+			this.emit();
+		}
+		await this.fetchAllFlags(undefined, options);
+	}
+
+	updateConfig(config: FlagsConfig): void {
+		const wasInactive = this.config.disabled || this.config.isPending;
+		const nextConfig = { ...this.config, ...config };
+		const contextChanged = this.activeContextChanged(
+			nextConfig.user,
+			nextConfig.environment,
+			nextConfig.clientId
+		);
+		this.config = nextConfig;
+		if (contextChanged) {
+			this.clearActiveContextState();
+		}
+		this.resetBatchers(new FlagsContextChangedError());
+		this.emit();
+
+		if (
+			(contextChanged || wasInactive) &&
+			!this.config.disabled &&
+			!this.config.isPending
+		) {
+			this.fetchAllFlags().catch((err) => logger.error("Fetch error:", err));
+		}
+	}
+
+	getMemoryFlags(): Record<string, FlagResult> {
+		const flags: Record<string, FlagResult> = {};
+		for (const [key, entry] of this.cache) {
+			if (entry.result && this.cacheKeyIsActive(key)) {
+				flags[getFlagKey(key)] = entry.result;
+			}
+		}
+		for (const [key, override] of this.overrides) {
+			flags[key] = override;
+		}
+		return flags;
+	}
+
+	getLastError(): FlagsRequestFailure | null {
+		return this.lastError ? { ...this.lastError } : null;
+	}
+
+	setOverride(key: string, override: FlagResult | null): void {
+		if (override === null) {
+			if (!this.overrides.delete(key)) {
+				return;
+			}
+		} else {
+			this.overrides.set(key, { ...override, reason: "OVERRIDE" });
+		}
+		this.onOverridesChanged();
+		this.emit();
+	}
+
+	protected onOverridesChanged(): void {}
+
+	getDevtoolsConfig(): {
+		apiUrl: string | null;
+		autoFetch: boolean;
+		cacheSize: number;
+		cacheTtl: number | null;
+		clientId: string | null;
+		defaults: Record<string, unknown>;
+		disabled: boolean;
+		environment: string | null;
+		isPending: boolean;
+		skipStorage: boolean;
+		staleTime: number | null;
+		user: {
+			email: string | null;
+			organizationId: string | null;
+			teamId: string | null;
+			userId: string | null;
+		} | null;
+	} {
+		const user = this.config.user;
+		return {
+			apiUrl: this.config.apiUrl ?? null,
+			autoFetch: this.config.autoFetch ?? true,
+			cacheSize: this.cache.size,
+			cacheTtl: this.config.cacheTtl ?? null,
+			clientId: this.config.clientId ?? null,
+			defaults: this.config.defaults ?? {},
+			disabled: Boolean(this.config.disabled),
+			environment: this.config.environment ?? null,
+			isPending: Boolean(this.config.isPending),
+			skipStorage: Boolean(this.storage === undefined),
+			staleTime: this.config.staleTime ?? null,
+			user: user
+				? {
+						email: user.email ?? null,
+						organizationId: user.organizationId ?? null,
+						teamId: user.teamId ?? null,
+						userId: user.userId ?? null,
+					}
+				: null,
+		};
+	}
+
+	isReady(): boolean {
+		return this.ready;
+	}
+
+	destroy(): void {
+		this.resetBatchers();
+		this.cache.clear();
+		this.listeners.clear();
+	}
+
+	subscribe = (cb: () => void): (() => void) => {
+		this.listeners.add(cb);
+		return () => {
+			this.listeners.delete(cb);
+		};
+	};
+
+	getSnapshot = (): FlagsSnapshot => this.snapshot;
+
+	protected enrichUser(user: UserContext): UserContext {
+		return user;
+	}
+
+	protected emit(): void {
+		this.snapshot = {
+			flags: this.getMemoryFlags(),
+			isReady: this.ready,
+			lastError: this.getLastError(),
+		};
+		for (const listener of this.listeners) {
+			listener();
+		}
+	}
+
+	private resetBatchers(error?: Error): void {
+		for (const batcher of this.batchers.values()) {
+			batcher.destroy(error);
+		}
+		this.batchers.clear();
+	}
+
+	private activeContextChanged(
+		nextUser: UserContext | undefined,
+		nextEnvironment: string | undefined,
+		nextClientId: string
+	): boolean {
+		return (
+			this.activeCacheContext() !==
+			getCacheContext(nextUser, nextEnvironment, nextClientId)
+		);
+	}
+
+	private activeCacheContext(): string {
+		return getCacheContext(
+			this.config.user,
+			this.config.environment,
+			this.config.clientId
+		);
+	}
+
+	private cacheKeyIsActive(cacheKey: string): boolean {
+		return cacheKeyBelongsToContext(
+			cacheKey,
+			this.config.user,
+			this.config.environment,
+			this.config.clientId
+		);
+	}
+
+	private clearActiveContextState(): void {
+		this.contextGeneration += 1;
+		this.cache.clear();
+		this.storage?.clear();
+		this.lastError = null;
+		this.onContextCleared();
+	}
+
+	private requestGenerationIsCurrent(generation: number): boolean {
+		return generation === this.contextGeneration;
+	}
+
+	private async awaitPendingFlag(
+		key: string,
+		user: UserContext | undefined,
+		promise: Promise<FlagResult>,
+		requestGeneration: number
+	): Promise<FlagResult> {
+		try {
+			const result = await promise;
+			return this.requestGenerationIsCurrent(requestGeneration)
+				? result
+				: this.getFlag(key, user);
+		} catch (error) {
+			if (
+				!this.requestGenerationIsCurrent(requestGeneration) ||
+				error instanceof FlagsContextChangedError
+			) {
+				return this.getFlag(key, user);
+			}
+			throw error;
+		}
+	}
+
+	private captureError(error: unknown): void {
+		this.lastError =
+			error instanceof FlagsRequestError
+				? error.toFailure()
+				: {
+						code: "NETWORK_ERROR",
+						message:
+							error instanceof Error ? error.message : "Flag request failed",
+						status: null,
+						retryable: true,
+					};
+		this.emit();
+	}
+
+	protected revalidateStale(): void {
+		for (const entry of this.cache.values()) {
+			if (isStale(entry)) {
+				this.fetchAllFlags().catch((err) =>
+					logger.error("Revalidation error:", err)
+				);
+				return;
+			}
+		}
+	}
+}
+
+export class BrowserFlagsManager extends BaseFlagsManager {
+	private isVisible = true;
+	private visibilityCleanup?: () => void;
+	private readonly trackedFlags = new Set<string>();
+
+	constructor(options: FlagsManagerOptions) {
+		super(options);
+		this.config.user = this.enrichUser(this.config.user ?? {});
+		this.config.autoFetch = options.config.autoFetch !== false;
+		this.loadOverrides();
+		this.setupVisibilityListener();
+		this.runInit();
+	}
+
+	protected override onOverridesChanged(): void {
+		if (typeof localStorage === "undefined") {
+			return;
+		}
+		try {
+			if (this.overrides.size === 0) {
+				localStorage.removeItem(OVERRIDES_KEY);
+				return;
+			}
+			localStorage.setItem(
+				OVERRIDES_KEY,
+				JSON.stringify(Object.fromEntries(this.overrides))
+			);
+		} catch {
+			// storage blocked
+		}
+	}
+
+	private loadOverrides(): void {
+		if (typeof localStorage === "undefined") {
+			return;
+		}
+		try {
+			const raw = localStorage.getItem(OVERRIDES_KEY);
+			if (!raw) {
+				return;
+			}
+			const stored = JSON.parse(raw) as Record<string, FlagResult>;
+			for (const [k, v] of Object.entries(stored)) {
+				this.overrides.set(k, v);
+			}
+		} catch {
+			// ignore corrupt storage
+		}
+	}
+
+	protected override shouldSkipFetch(): boolean {
+		return !this.isVisible;
+	}
+
+	protected override onCacheUpdated(): void {
+		this.persist();
+	}
+
+	protected override onContextCleared(): void {
+		this.trackedFlags.clear();
+	}
+
+	protected override onFlagEvaluated(key: string, result: FlagResult): void {
+		let valueKey: string;
+		try {
+			valueKey = JSON.stringify(result.value) ?? String(result.value);
+		} catch {
+			// A malformed custom value should not prevent telemetry.
+			valueKey = String(result.value);
+		}
+		const dedupeKey = [key, result.variant ?? "", valueKey]
+			.map((part) => `${part.length}:${part}`)
+			.join("");
+		if (this.trackedFlags.has(dedupeKey)) {
+			return;
+		}
+		this.trackedFlags.add(dedupeKey);
+
+		try {
+			if (typeof window !== "undefined" && (window.datamate || window.db)) {
+				const tracker = window.datamate ?? window.db;
+				tracker?.track?.("$flag_evaluated", {
+					flag: key,
+					value: result.value,
+					variant: result.variant,
+					enabled: result.enabled,
+				});
+			}
+		} catch {
+			// Tracker may not be available
+		}
+	}
+
+	protected override enrichUser(user: UserContext): UserContext {
+		if (user.userId || user.email) {
+			return user;
+		}
+		const anonId = this.getOrCreateAnonId();
+		if (!anonId) {
+			return user;
+		}
+		return { ...user, userId: anonId };
+	}
+
+	override updateConfig(config: FlagsConfig): void {
+		if (!("user" in config)) {
+			super.updateConfig(config);
+			return;
+		}
+		const incoming = config.user;
+		const incomingHasIdentity = Boolean(incoming?.userId || incoming?.email);
+		const isPending = config.isPending ?? this.config.isPending ?? false;
+		const currentIsReal = this.isRealIdentity(this.config.user);
+		let resolvedUser: UserContext;
+		if (incomingHasIdentity) {
+			resolvedUser = this.enrichUser(incoming as UserContext);
+		} else if (isPending && currentIsReal) {
+			resolvedUser = this.config.user as UserContext;
+		} else {
+			resolvedUser = this.enrichUser(incoming ?? {});
+		}
+		super.updateConfig({ ...config, user: resolvedUser });
+	}
+
+	private isRealIdentity(user: UserContext | undefined): boolean {
+		if (!user) {
+			return false;
+		}
+		if (user.email) {
+			return true;
+		}
+		return Boolean(user.userId && !user.userId.startsWith("anon_"));
+	}
+
+	override destroy(): void {
+		super.destroy();
+		this.visibilityCleanup?.();
+		this.trackedFlags.clear();
+	}
+
+	private getOrCreateAnonId(): string | null {
+		if (typeof localStorage === "undefined") {
+			return null;
+		}
+		try {
+			let id = localStorage.getItem(ANON_ID_KEY);
+			if (id) {
+				return id;
+			}
+			id = `anon_${crypto.randomUUID()}`;
+			localStorage.setItem(ANON_ID_KEY, id);
+			return id;
+		} catch {
+			return null;
+		}
+	}
+
+	private setupVisibilityListener(): void {
+		if (typeof document === "undefined") {
+			return;
+		}
+		const handler = (): void => {
+			this.isVisible = document.visibilityState === "visible";
+			if (this.isVisible) {
+				this.revalidateStale();
+			}
+		};
+		document.addEventListener("visibilitychange", handler);
+		this.visibilityCleanup = () => {
+			document.removeEventListener("visibilitychange", handler);
+		};
+	}
+}

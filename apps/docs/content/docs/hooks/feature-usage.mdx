@@ -1,0 +1,87 @@
+---
+title: Feature Usage Tracking
+description: Track when users interact with specific features
+---
+
+import { CodeBlock } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+Track feature interactions to understand which features are most popular and how users engage with your application.
+
+## Implementation
+
+<CodeBlock 
+  language="tsx"
+  code={`import { track } from "@datamate/sdk";
+import { useCallback } from "react";
+
+export function useFeatureTracking(featureName: string) {
+  const trackUsage = useCallback(
+    (action: string, properties?: Record<string, unknown>) => {
+      track("feature_used", {
+        feature: featureName,
+        action,
+        ...properties,
+      });
+    },
+    [featureName]
+  );
+
+  return { trackUsage };
+}`}
+/>
+
+## Usage
+
+<CodeBlock 
+  language="tsx"
+  code={`function ExportButton() {
+  const { trackUsage } = useFeatureTracking("export_data");
+
+  const handleExport = async () => {
+    trackUsage("export_started", { format: "csv" });
+    try {
+      await exportData();
+      trackUsage("export_completed", { format: "csv" });
+    } catch (error) {
+      trackUsage("export_failed", { format: "csv", error: error.message });
+    }
+  };
+
+  return <button onClick={handleExport}>Export</button>;
+}`}
+/>
+
+## What It Tracks
+
+- **Event**: `feature_used`
+- **Properties**:
+  - `feature`: Name of the feature being tracked
+  - `action`: Specific action (e.g., "started", "completed", "failed")
+  - Additional custom properties as needed
+
+## Benefits
+
+- **Feature Adoption**: Understand which features users actually use
+- **Usage Patterns**: Track feature usage across different user segments
+- **Performance Monitoring**: Track feature success/failure rates
+
+<Callout type="info">
+Use different actions (started, completed, failed) to track the full lifecycle of feature interactions.
+</Callout>
+
+## Related
+
+<Cards>
+  <Card title="Toast Tracking" href="/docs/hooks/toast-tracking">
+    Track toast notifications automatically
+  </Card>
+  <Card title="Form Tracking" href="/docs/hooks/form-tracking">
+    Track form submissions with validation state
+  </Card>
+  <Card title="Hooks Overview" href="/docs/hooks">
+    View all available tracking hooks
+  </Card>
+</Cards>
+

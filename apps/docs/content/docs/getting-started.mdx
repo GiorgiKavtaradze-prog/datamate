@@ -1,0 +1,250 @@
+---
+title: Getting Started
+description: Install and configure Datamate for your application
+---
+
+import { Step, Steps } from "@/components/docs";
+import { Tab, Tabs } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+import { CodeBlock } from "@/components/docs";
+import { LeapComponent } from "@/components/docs";
+
+This guide takes you from a new Datamate account to your first tracked page view.
+
+<LeapComponent/>
+
+<Steps>
+<Step>
+
+## Create Your Account
+
+1. Go to [app.datamate.cc](https://app.datamate.cc)
+2. Sign up for a free account
+3. Copy your **Client ID** from the dashboard
+
+</Step>
+<Step>
+
+## Install the SDK
+
+Choose the install method for your app:
+
+<Tabs items={['React/Next.js', 'Script Tag']}>
+<Tab value="React/Next.js">
+
+Install the official Datamate SDK:
+
+<CodeBlock
+  language="bash"
+  code={`# Using bun (recommended)
+bun add @datamate/sdk
+
+# Using npm
+npm install @datamate/sdk
+
+# Using yarn
+yarn add @datamate/sdk`}
+/>
+
+</Tab>
+<Tab value="Script Tag">
+
+For any website, use the script tag method:
+
+<CodeBlock
+  language="html"
+  code={`<script
+    src="https://cdn.datamate.cc/datamate.js"
+    data-client-id="your-client-id"
+    data-track-web-vitals
+    async
+  ></script>`}
+/>
+
+</Tab>
+</Tabs>
+
+</Step>
+<Step>
+
+## Add Tracking
+
+<Tabs items={['React/Next.js', 'Script Tag']}>
+<Tab value="React/Next.js">
+
+Add the `<Datamate />` component once in your root layout:
+
+<CodeBlock
+  language="tsx"
+  filename="app/layout.tsx"
+  code={`import { Datamate } from "@datamate/sdk/react";
+
+  export default function RootLayout({
+    children,
+  }: {
+    children: React.ReactNode;
+  }) {
+    return (
+      <html lang="en">
+        <head />
+        <body>
+          <Datamate
+            clientId={process.env.NEXT_PUBLIC_DATAMATE_CLIENT_ID!}
+			trackWebVitals
+            trackErrors
+          />
+          {children}
+        </body>
+      </html>
+    );
+  }`}
+/>
+
+**Environment Variables:**
+
+<CodeBlock
+  language="bash"
+  filename=".env.local"
+  code="NEXT_PUBLIC_DATAMATE_CLIENT_ID=your-client-id"
+/>
+
+</Tab>
+<Tab value="Script Tag">
+
+Add the script to your HTML before the closing `</body>` tag:
+
+<CodeBlock
+  language="html"
+  filename="index.html"
+  code={`<!DOCTYPE html>
+  <html>
+    <head>
+      <title>My Website</title>
+    </head>
+    <body>
+      <!-- Your content -->
+
+      <!-- Datamate Analytics -->
+      <script
+        src="https://cdn.datamate.cc/datamate.js"
+        data-client-id="your-client-id"
+        data-track-web-vitals
+        data-track-errors
+        async
+      ></script>
+    </body>
+  </html>`}
+/>
+
+</Tab>
+</Tabs>
+
+</Step>
+<Step>
+
+## Verify Installation
+
+Check that page tracking works:
+
+1. **Visit your website** in a new browser tab
+2. **Open your Datamate dashboard** at [app.datamate.cc](https://app.datamate.cc)
+3. **Check Real-time data** - you should see yourself as an active visitor
+4. **Navigate between pages** - Datamate records route changes automatically
+
+<Callout type="success">
+  If you see real-time data in your dashboard, congratulations! Datamate is now
+  tracking your website analytics.
+</Callout>
+
+</Step>
+</Steps>
+
+## Track Your First Custom Event
+
+<Tabs items={['React/Next.js', 'Script Tag']}>
+<Tab value="React/Next.js">
+
+<CodeBlock
+  language="tsx"
+  filename="components/signup-button.tsx"
+  code={`"use client";
+
+import { track } from "@datamate/sdk";
+
+export function SignupButton() {
+  return (
+    <button
+      onClick={() =>
+        track("signup_clicked", {
+          location: "header",
+          plan: "free",
+        })
+      }
+      type="button"
+    >
+      Sign up
+    </button>
+  );
+}`}
+/>
+
+</Tab>
+<Tab value="Script Tag">
+
+<CodeBlock
+  language="html"
+  filename="index.html"
+  code={`<script>
+    function trackSignupClick() {
+      db.track("signup_clicked", {
+        location: "header",
+        plan: "free",
+      });
+    }
+  </script>
+
+<button onclick="trackSignupClick()">Sign up</button>`}
+/>
+
+</Tab>
+</Tabs>
+
+<Callout type="info">
+  Keep custom event names stable and use properties for details like location,
+  plan, status, or source.
+</Callout>
+
+## What's Next?
+
+<Cards>
+  <Card title="API Playground" href="/api">
+    Test endpoints interactively and explore query types with real data
+  </Card>
+  <Card title="SDK Configuration" href="/docs/sdk/configuration">
+    Explore all SDK configuration props and options
+  </Card>
+  <Card title="Dashboard Guide" href="/docs/dashboard">
+    Learn to navigate your analytics dashboard and its features
+  </Card>
+  <Card title="Tracker Helpers" href="/docs/sdk/tracker">
+    Use helper methods like track, flush, and getAnonymousId
+  </Card>
+  <Card title="Security & Privacy" href="/docs/security">
+    Configure privacy settings and GDPR compliance
+  </Card>
+</Cards>
+
+## Troubleshooting
+
+**Not seeing data in your dashboard?**
+
+1. **Check your Client ID** - Make sure it matches this website
+2. **Test manually** - Try `db.track('test', {})` in your browser console
+3. **Check Network tab** - Look for requests to `basket.datamate.cc`
+4. **Review environment** - Make sure tracking isn't disabled in production
+
+<Callout type="info">
+  Need help? Join our [Discord community](https://discord.gg/JTk7a38tCZ) or
+  [contact support](mailto:support@datamate.cc).
+</Callout>

@@ -1,0 +1,198 @@
+"use client";
+
+import { authClient } from "@datamate/auth/client";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useState } from "react";
+import { toast } from "sonner";
+import { CreateOrganizationDialog } from "@/components/organizations/create-organization-dialog";
+import {
+	AUTH_QUERY_KEYS,
+	type Organization,
+} from "@/components/providers/organizations-provider";
+import { RightSidebar } from "@/components/right-sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { cn, getOrganizationInitials } from "@/lib/utils";
+import {
+	BuildingsIcon,
+	CaretRightIcon,
+	CheckCircleIcon,
+	PlusIcon,
+} from "@datamate/ui/icons";
+import { Badge, Button, dayjs } from "@datamate/ui";
+
+function getDicebearUrl(seed: string): string {
+	return `https://api.dicebear.com/9.x/glass/svg?seed=${encodeURIComponent(seed)}`;
+}
+
+interface OrganizationsListProps {
+	activeOrganization: Organization | null | undefined;
+	organizations: Organization[] | null | undefined;
+}
+
+function EmptyState() {
+	const [showCreateOrganizationDialog, setShowCreateOrganizationDialog] =
+		useState(false);
+
+	return (
+		<>
+			<div className="flex h-full flex-col items-center justify-center p-8 text-center">
+				<div className="mb-4 flex size-16 items-center justify-center rounded-full bg-primary/10">
+					<BuildingsIcon className="text-primary" size={28} weight="duotone" />
+				</div>
+				<h3 className="mb-1 font-semibold text-lg">No organizations yet</h3>
+				<p className="mb-6 max-w-sm text-muted-foreground text-sm">
+					Create your first organization to collaborate with your team
+				</p>
+				<Button onClick={() => setShowCreateOrganizationDialog(true)}>
+					Create Organization
+				</Button>
+			</div>
+
+			<CreateOrganizationDialog
+				isOpen={showCreateOrganizationDialog}
+				onClose={() => setShowCreateOrganizationDialog(false)}
+			/>
+		</>
+	);
+}
+
+interface OrganizationRowProps {
+	isActive: boolean;
+	isProcessing: boolean;
+	onClick: () => void;
+	organization: Organization;
+}
+
+function OrganizationRow({
+	organization,
+	isActive,
+	isProcessing,
+	onClick,
+}: OrganizationRowProps) {
+	return (
+		<button
+			className={cn(
+				"group relative grid w-full cursor-pointer grid-cols-[auto_1fr_auto_auto] items-center gap-4 px-5 py-3 text-left hover:bg-accent",
+				isProcessing && "pointer-events-none opacity-60"
+			)}
+			onClick={onClick}
+			type="button"
+		>
+			{isProcessing && (
+				<div className="absolute inset-0 flex items-center justify-center bg-background/50">
+					<div className="size-5 animate-spin rounded-full border-2 border-primary/30 border-t-primary" />
+				</div>
+			)}
+
+			<Avatar className="size-10">
+				<AvatarImage
+					alt={organization.name}
+					src={getDicebearUrl(organization.logo || organization.id)}
+				/>
+				<AvatarFallback className="bg-accent text-sm">
+					{getOrganizationInitials(organization.name)}
+				</AvatarFallback>
+			</Avatar>
+
+			<div className="min-w-0">
+				<p className="truncate font-medium">{organization.name}</p>
+				<p className="truncate text-muted-foreground text-sm">
+					@{organization.slug} · {dayjs(organization.createdAt).fromNow()}
+				</p>
+			</div>
+
+			{isActive && (
+				<Badge variant="success">
+					<CheckCircleIcon className="mr-1" size={12} weight="fill" />
+					Active
+				</Badge>
+			)}
+
+			<CaretRightIcon
+				className="text-accent-foreground transition-all group-hover:translate-x-0.5"
+				size={16}
+				weight="bold"
+			/>
+		</button>
+	);
+}
+
+export function OrganizationsList({
+	organizations,
+	activeOrganization,
+}: OrganizationsListProps) {
+	const router = useRouter();
+	const queryClient = useQueryClient();
+	const [processingId, setProcessingId] = useState<string | null>(null);
+	const [showCreateOrganizationDialog, setShowCreateOrganizationDialog] =
+		useState(false);
+	const handleOrgClick = async (orgId: string) => {
+		const isCurrentlyActive = activeOrganization?.id === orgId;
+
+		if (isCurrentlyActive) {
+			router.push("/organizations/settings");
+			return;
+		}
+
+		setProcessingId(orgId);
+		try {
+			const { error } = await authClient.organization.setActive({
+				organizationId: orgId,
+			});
+			if (error) {
+				toast.error(error.message ?? "Failed to switch organization");
+			} else {
+				await queryClient.invalidateQueries({
+					queryKey: AUTH_QUERY_KEYS.activeOrganization,
+				});
+				queryClient.invalidateQueries();
+				toast.success("Organization updated");
+				await new Promise((resolve) => setTimeout(resolve, 300));
+				router.push("/organizations/settings");
+			}
+		} catch {
+			toast.error("Failed to switch organization");
+		} finally {
+			setProcessingId(null);
+		}
+	};
+
+	if (!organizations || organizations.length === 0) {
+		return <EmptyState />;
+	}
+
+	return (
+		<div className="h-full lg:grid lg:grid-cols-[1fr_18rem]">
+			<div className="flex flex-col border-b lg:border-b-0">
+				<div className="flex-1 divide-y overflow-y-auto">
+					{organizations.map((org) => (
+						<OrganizationRow
+							isActive={activeOrganization?.id === org.id}
+							isProcessing={processingId === org.id}
+							key={org.id}
+							onClick={() => handleOrgClick(org.id)}
+							organization={org}
+						/>
+					))}
+				</div>
+			</div>
+
+			<RightSidebar className="gap-4 p-5">
+				<Button
+					className="w-full"
+					onClick={() => setShowCreateOrganizationDialog(true)}
+				>
+					<PlusIcon size={16} />
+					New Organization
+				</Button>
+				<CreateOrganizationDialog
+					isOpen={showCreateOrganizationDialog}
+					onClose={() => setShowCreateOrganizationDialog(false)}
+				/>
+				<RightSidebar.DocsLink className="justify-center" />
+				<RightSidebar.Tip description="Click on an organization to switch to it. The active organization is used across the dashboard." />
+			</RightSidebar>
+		</div>
+	);
+}

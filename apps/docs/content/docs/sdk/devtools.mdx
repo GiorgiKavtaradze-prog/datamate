@@ -1,0 +1,129 @@
+---
+title: Datamate DevTools
+description: Inspect Datamate events, identity, queues, diagnostics, and feature flags during local development
+---
+
+import { Callout, CodeBlock, Card, Cards } from "@/components/docs";
+
+Datamate DevTools is a moveable browser overlay for local development, QA, and previews. It observes the Datamate browser SDK already running on the page.
+
+<Callout type="info">
+  **Package**: `@datamate/devtools` | **Shortcut**: Cmd/Ctrl + Shift + D
+</Callout>
+
+## Installation
+
+<CodeBlock language="bash">
+  {`bun add -d @datamate/devtools`}
+</CodeBlock>
+
+## React
+
+<CodeBlock language="tsx">
+  {`import { DatamateDevtools } from "@datamate/devtools/react";
+
+export function AppShell({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      {children}
+      <DatamateDevtools enabled={process.env.NODE_ENV !== "production"} />
+    </>
+  );
+}`}
+</CodeBlock>
+
+Manual mount:
+
+<CodeBlock language="tsx">
+  {`import { mountDevtools } from "@datamate/devtools/react";
+
+const unmount = mountDevtools();`}
+</CodeBlock>
+
+## Vue
+
+<CodeBlock language="vue">
+  {`<script setup>
+import { DatamateDevtools } from "@datamate/devtools/vue";
+</script>
+
+<template>
+  <RouterView />
+  <DatamateDevtools :enabled="import.meta.env.DEV" />
+</template>`}
+</CodeBlock>
+
+Manual mount:
+
+<CodeBlock language="ts">
+  {`import { mountDevtools } from "@datamate/devtools/vue";
+
+const unmount = mountDevtools();`}
+</CodeBlock>
+
+## What It Shows
+
+- Runtime status and diagnostics
+- Client, anonymous, and session IDs
+- URL attribution params and storage keys
+- Global properties
+- Event calls: `track`, `screenView`, `flush`, and `clear`
+- Queue lengths and flush state
+- Feature flag readiness, config, values, variants, reasons, and sources
+- Local feature flag overrides
+
+## Feature Flags
+
+DevTools reads the browser flag manager created by `FlagsProvider` or Vue `createFlagsPlugin`. If no flag manager is mounted, the flag panel will show flags as unavailable.
+
+Flag sources:
+
+| Source | Meaning |
+| --- | --- |
+| `server` | Result came from the flags API |
+| `cache` | Cached result |
+| `default` | Local fallback |
+| `error` | Evaluation failed |
+| `override` | Local DevTools override |
+
+Overrides are local only. Clear overrides before validating real flag behavior.
+
+### Flag Debugging Workflow
+
+1. Open DevTools with Cmd/Ctrl + Shift + D.
+2. Confirm the flag manager is ready and using the expected `clientId`, API host, and environment.
+3. Confirm the user context includes the IDs your rollout needs: `userId`, `organizationId`, or `teamId`.
+4. Inspect the flag source. `server` means a real API evaluation, `cache` means a cached value, and `override` means DevTools is forcing the result locally.
+5. Test each UI branch with a local override, then clear the override and refresh to validate real behavior.
+6. Trigger the outcome event and verify it includes `flag_key`, `variant`, and any useful status field.
+
+## Managing Flags
+
+DevTools can create, update, and delete flag definitions when you paste an API key with `manage:flags` scope at runtime.
+
+It uses:
+
+- `GET /public/v1/flags/definitions`
+- `POST /public/v1/flags`
+- `PATCH /public/v1/flags/{id}`
+- `DELETE /public/v1/flags/{id}`
+
+The default API host is the active flag manager API URL, falling back to `https://api.datamate.cc`. You can override it in the overlay for local or preview environments.
+
+<Callout type="warning">
+  Do not hard-code flag management API keys in source. Paste scoped keys into DevTools only when you need runtime flag management. DevTools keeps the key in session storage and clears any older local-storage copy when you disconnect.
+</Callout>
+
+## Related
+
+<Cards>
+  <Card title="Feature Flags" href="/docs/sdk/feature-flags">
+    React and Vue feature flag hooks
+  </Card>
+  <Card title="Server Flags" href="/docs/sdk/server-flags">
+    Server-side feature flag evaluation
+  </Card>
+  <Card title="Tracker Helpers" href="/docs/sdk/tracker">
+    Event helpers, IDs, and attribution utilities
+  </Card>
+</Cards>

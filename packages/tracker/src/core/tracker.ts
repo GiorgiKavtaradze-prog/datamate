@@ -1,0 +1,868 @@
+import { HttpClient, type HttpResult } from "./client";
+import type {
+	BaseEvent,
+	ErrorSpan,
+	EventContext,
+	ProfileTraits,
+	TrackEventPayload,
+	TrackerOptions,
+	TrackerSendOutcome,
+	WebVitalEvent,
+} from "./types";
+import {
+	buildPagePath,
+	clearStoredTrackingState,
+	generateUUIDv4,
+	isDebugMode,
+	isLocalhost,
+	isOptedOut,
+	logger,
+	maskPathname,
+	sanitizePageUrl,
+} from "./utils";
+
+const TRACKED_PARAMS: Record<string, boolean> = {
+	gclid: true,
+	fbclid: true,
+	ttclid: true,
+	twclid: true,
+	li_fat_id: true,
+	msclkid: true,
+	utm_source: false,
+	utm_medium: false,
+	utm_campaign: false,
+	utm_term: false,
+	utm_content: false,
+};
+const DID_PARAMS_KEY = "did_params";
+
+const HEADLESS_CHROME_REGEX = /\bHeadlessChrome\b/i;
+const PHANTOMJS_REGEX = /\bPhantomJS\b/i;
+const ANON_ID_PATTERN = /^anon_[0-9a-f-]{36}$/;
+const SESSION_ID_PATTERN = /^sess_[0-9a-f-]{36}$/;
+const MAX_PROFILE_ID_LENGTH = 128;
+const MIN_RETRY_DELAY = 250;
+const MAX_RETRY_DELAY = 30_000;
+
+interface QueueMeta {
+	activeDeliveryGeneration: number | null;
+	activeItems: unknown[] | null;
+	endpoint: string;
+	flushing: boolean;
+	maxBatchSize: number;
+	queryParam: string;
+	retryAttempts: number;
+	threshold: number;
+	timer: Timer | null;
+}
+
+export class BaseTracker {
+	options: TrackerOptions;
+	api: HttpClient;
+
+	anonymousId?: string;
+	sessionId?: string;
+	profileId: string | null = null;
+	sessionStartTime = 0;
+
+	pageCount = 0;
+	lastPath = "";
+	interactionCount = 0;
+	maxScrollDepth = 0;
+	pageStartTime = Date.now();
+
+	private readonly cachedTimezone: string | undefined;
+
+	isLikelyBot = false;
+
+	batchQueue: BaseEvent[] = [];
+	vitalsQueue: WebVitalEvent[] = [];
+	errorsQueue: ErrorSpan[] = [];
+	trackQueue: TrackEventPayload[] = [];
+
+	// One meta entry per queue: holds timer/flushing state + flush config.
+	// Public flushBatch/flushVitals/flushErrors/flushTrack remain as thin
+	// wrappers for backwards-compat with tests + index.ts.
+	protected _meta!: {
+		batch: QueueMeta;
+		vitals: QueueMeta;
+		errors: QueueMeta;
+		track: QueueMeta;
+	};
+
+	private readonly routeChangeCallbacks: Array<(path: string) => void> = [];
+
+	protected urlParams: Record<string, string> = {};
+	private deliveryGeneration = 0;
+
+	constructor(options: TrackerOptions) {
+		if (!options.clientId || typeof options.clientId !== "string") {
+			throw new Error("[Datamate] clientId is required and must be a string");
+		}
+
+		this.options = {
+			disabled: false,
+			samplingRate: 1.0,
+			enableRetries: true,
+			maxRetries: 3,
+			initialRetryDelay: 500,
+			enableBatching: true,
+			batchSize: 10,
+			batchTimeout: 5000,
+			sdk: "web",
+			sdkVersion: "2.0.0",
+			...options,
+		};
+		if (
+			options.trackWebVitals === undefined &&
+			options.trackPerformance !== undefined
+		) {
+			this.options.trackWebVitals = options.trackPerformance;
+		}
+
+		const effectiveMaxRetries =
+			this.options.enableRetries === false ? 0 : (this.options.maxRetries ?? 3);
+
+		this.api = new HttpClient({
+			baseUrl: this.options.apiUrl || "https://basket.datamate.cc",
+			defaultHeaders: {
+				"datamate-client-id": this.options.clientId,
+				"datamate-sdk-name": this.options.sdk || "web",
+				"datamate-sdk-version": this.options.sdkVersion || "2.0.0",
+			},
+			maxRetries: effectiveMaxRetries,
+			initialRetryDelay: this.options.initialRetryDelay ?? 500,
+		});
+
+		this._meta = {
+			batch: {
+				activeDeliveryGeneration: null,
+				activeItems: null,
+				timer: null,
+				flushing: false,
+				maxBatchSize: 100,
+				endpoint: "/batch",
+				queryParam: "client_id",
+				retryAttempts: 0,
+				threshold: this.options.batchSize || 10,
+			},
+			vitals: {
+				activeDeliveryGeneration: null,
+				activeItems: null,
+				timer: null,
+				flushing: false,
+				maxBatchSize: 20,
+				endpoint: "/vitals",
+				queryParam: "client_id",
+				retryAttempts: 0,
+				threshold: 6,
+			},
+			errors: {
+				activeDeliveryGeneration: null,
+				activeItems: null,
+				timer: null,
+				flushing: false,
+				maxBatchSize: 50,
+				endpoint: "/errors",
+				queryParam: "client_id",
+				retryAttempts: 0,
+				threshold: 10,
+			},
+			track: {
+				activeDeliveryGeneration: null,
+				activeItems: null,
+				timer: null,
+				flushing: false,
+				maxBatchSize: 100,
+				endpoint: "/track",
+				queryParam: "website_id",
+				retryAttempts: 0,
+				threshold: 10,
+			},
+		};
+
+		if (typeof window !== "undefined" && isOptedOut()) {
+			this.clearStoredVisitorState();
+			return;
+		}
+		if (this.isServer()) {
+			return;
+		}
+
+		this.isLikelyBot = this.detectBot();
+		if (this.isLikelyBot) {
+			logger.log("Bot detected, tracking might be filtered");
+		}
+
+		try {
+			this.cachedTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+		} catch {}
+
+		this.anonymousId = this.getOrCreateAnonymousId();
+		this.sessionId = this.getOrCreateSessionId();
+		this.profileId = this.loadProfileId();
+		this.sessionStartTime = this.getSessionStartTime();
+		this.refreshUrlParams();
+		logger.log("Tracker initialized", this.options);
+	}
+
+	isServer(): boolean {
+		return (
+			typeof document === "undefined" ||
+			typeof window === "undefined" ||
+			typeof localStorage === "undefined"
+		);
+	}
+
+	detectBot(): boolean {
+		if (this.isServer() || this.options.ignoreBotDetection) {
+			return false;
+		}
+
+		const ua = navigator.userAgent || "";
+		const isHeadless =
+			HEADLESS_CHROME_REGEX.test(ua) || PHANTOMJS_REGEX.test(ua);
+
+		return Boolean(
+			navigator.webdriver ||
+				window.webdriver ||
+				isHeadless ||
+				window.callPhantom ||
+				window._phantom ||
+				window.selenium ||
+				document.documentElement.getAttribute("webdriver") === "true"
+		);
+	}
+
+	getOrCreateAnonymousId(): string {
+		if (this.isServer()) {
+			return this.generateAnonymousId();
+		}
+
+		const urlParams = new URLSearchParams(window.location.search);
+		const anonId = urlParams.get("anonId");
+		if (anonId && ANON_ID_PATTERN.test(anonId)) {
+			localStorage.setItem("did", anonId);
+			return anonId;
+		}
+
+		const storedId = localStorage.getItem("did");
+		if (storedId) {
+			return storedId;
+		}
+
+		const newId = this.generateAnonymousId();
+		localStorage.setItem("did", newId);
+		return newId;
+	}
+
+	generateAnonymousId(): string {
+		return `anon_${generateUUIDv4()}`;
+	}
+
+	getOrCreateSessionId(): string {
+		if (this.isServer()) {
+			return this.generateSessionId();
+		}
+
+		const urlParams = new URLSearchParams(window.location.search);
+		const sessionIdFromUrl = urlParams.get("sessionId");
+		if (sessionIdFromUrl && SESSION_ID_PATTERN.test(sessionIdFromUrl)) {
+			sessionStorage.setItem("did_session", sessionIdFromUrl);
+			sessionStorage.setItem("did_session_timestamp", Date.now().toString());
+			return sessionIdFromUrl;
+		}
+
+		const storedId = sessionStorage.getItem("did_session");
+		const sessionTimestamp = sessionStorage.getItem("did_session_timestamp");
+
+		if (storedId && sessionTimestamp) {
+			const sessionAge = Date.now() - Number.parseInt(sessionTimestamp, 10);
+			if (sessionAge < 30 * 60 * 1000) {
+				sessionStorage.setItem("did_session_timestamp", Date.now().toString());
+				return storedId;
+			}
+			sessionStorage.removeItem("did_session");
+			sessionStorage.removeItem("did_session_timestamp");
+			sessionStorage.removeItem("did_session_start");
+		}
+
+		const newId = this.generateSessionId();
+		sessionStorage.setItem("did_session", newId);
+		sessionStorage.setItem("did_session_timestamp", Date.now().toString());
+		return newId;
+	}
+
+	generateSessionId(): string {
+		return `sess_${generateUUIDv4()}`;
+	}
+
+	loadProfileId(): string | null {
+		if (this.isServer()) {
+			return null;
+		}
+		try {
+			return localStorage.getItem("did_profile");
+		} catch {
+			return null;
+		}
+	}
+
+	identify(profileId: string, traits?: ProfileTraits): void {
+		if (typeof profileId !== "string" || !profileId.trim()) {
+			logger.error("identify requires a non-empty string profileId");
+			return;
+		}
+		const trimmed = profileId.trim();
+		if (trimmed.length > MAX_PROFILE_ID_LENGTH) {
+			logger.error(
+				`identify profileId exceeds ${MAX_PROFILE_ID_LENGTH} characters`
+			);
+			return;
+		}
+		if (this.shouldSkipTracking()) {
+			return;
+		}
+
+		this.profileId = trimmed;
+		const hasTraits = Boolean(traits && Object.keys(traits).length > 0);
+		let alreadySentThisSession = false;
+		try {
+			localStorage.setItem("did_profile", trimmed);
+			alreadySentThisSession =
+				sessionStorage.getItem("did_profile_sent") === trimmed;
+		} catch {}
+
+		if (alreadySentThisSession && !hasTraits) {
+			return;
+		}
+
+		this.sendIdentify(trimmed, hasTraits ? traits : undefined);
+	}
+
+	setTraits(traits: ProfileTraits): void {
+		if (!this.profileId) {
+			logger.error("setTraits requires identify() to be called first");
+			return;
+		}
+		if (this.shouldSkipTracking()) {
+			return;
+		}
+		this.sendIdentify(this.profileId, traits);
+	}
+
+	clearProfile(): void {
+		this.profileId = null;
+		if (this.isServer()) {
+			return;
+		}
+		try {
+			localStorage.removeItem("did_profile");
+			sessionStorage.removeItem("did_profile_sent");
+		} catch {}
+	}
+
+	getProfileId(): string | null {
+		return this.profileId;
+	}
+
+	private sendIdentify(profileId: string, traits?: ProfileTraits): void {
+		const deliveryGeneration = this.deliveryGeneration;
+		this.api
+			.fetch(
+				"/identify",
+				{ profileId, anonymousId: this.anonymousId, traits },
+				{ keepalive: false },
+				{ client_id: this.options.clientId }
+			)
+			.then((result) => {
+				if (!result.ok || deliveryGeneration !== this.deliveryGeneration) {
+					return;
+				}
+				try {
+					sessionStorage.setItem("did_profile_sent", profileId);
+				} catch {}
+			})
+			.catch(() => {});
+	}
+
+	getSessionStartTime(): number {
+		if (this.isServer()) {
+			return Date.now();
+		}
+
+		const storedTime = sessionStorage.getItem("did_session_start");
+		if (storedTime) {
+			return Number.parseInt(storedTime, 10);
+		}
+
+		const now = Date.now();
+		sessionStorage.setItem("did_session_start", now.toString());
+		return now;
+	}
+
+	protected shouldSkipTracking(): boolean {
+		if (typeof window !== "undefined" && isOptedOut()) {
+			this.cancelPendingDelivery();
+			this.clearStoredVisitorState();
+			return true;
+		}
+		if (this.isServer() || this.options.disabled || this.isLikelyBot) {
+			return true;
+		}
+
+		if (!isDebugMode() && isLocalhost()) {
+			return true;
+		}
+
+		if (this.options.skipPatterns) {
+			const pathname = window.location.pathname;
+			for (const pattern of this.options.skipPatterns) {
+				if (pattern === pathname) {
+					return true;
+				}
+				const starIndex = pattern.indexOf("*");
+				if (
+					starIndex !== -1 &&
+					pathname.startsWith(pattern.slice(0, starIndex))
+				) {
+					return true;
+				}
+			}
+		}
+		return false;
+	}
+
+	protected shouldBlockQueuedDelivery(): boolean {
+		return this.shouldSkipTracking();
+	}
+
+	protected cancelPendingDelivery(): void {
+		this.deliveryGeneration += 1;
+		this.api.cancelPendingRequests();
+		this.batchQueue.length = 0;
+		this.trackQueue.length = 0;
+		this.vitalsQueue.length = 0;
+		this.errorsQueue.length = 0;
+
+		for (const meta of Object.values(this._meta)) {
+			if (meta.timer) {
+				clearTimeout(meta.timer);
+				meta.timer = null;
+			}
+			meta.activeDeliveryGeneration = null;
+			meta.activeItems = null;
+			meta.flushing = false;
+			meta.retryAttempts = 0;
+		}
+	}
+
+	private requeueActiveItems<T>(queue: T[], meta: QueueMeta): boolean {
+		if (!meta.activeItems || meta.activeItems.length === 0) {
+			return false;
+		}
+
+		queue.unshift(...(meta.activeItems as T[]));
+		meta.activeDeliveryGeneration = null;
+		meta.activeItems = null;
+		meta.flushing = false;
+		return true;
+	}
+
+	/**
+	 * An ordinary fetch may still be pending when the browser starts unloading.
+	 * Reclaim its removed queue items so the lifecycle handler can send the same
+	 * stable event identities through the unload beacon path.
+	 */
+	protected requeueActiveDeliveriesForUnload(): void {
+		const reclaimed = [
+			this.requeueActiveItems(this.batchQueue, this._meta.batch),
+			this.requeueActiveItems(this.trackQueue, this._meta.track),
+			this.requeueActiveItems(this.vitalsQueue, this._meta.vitals),
+			this.requeueActiveItems(this.errorsQueue, this._meta.errors),
+		].some(Boolean);
+
+		if (reclaimed) {
+			this.deliveryGeneration += 1;
+			this.api.cancelPendingRequests();
+		}
+	}
+
+	protected getMaskedPath(): string {
+		if (this.isServer()) {
+			return "";
+		}
+		return maskPathname(window.location.pathname, this.options.maskPatterns);
+	}
+
+	protected refreshUrlParams(): void {
+		if (typeof window !== "undefined" && isOptedOut()) {
+			this.clearStoredVisitorState();
+			return;
+		}
+		if (this.isServer()) {
+			return;
+		}
+		const search = new URLSearchParams(window.location.search);
+		const params: Record<string, string> = {};
+		const persist: Record<string, string> = {};
+
+		let stored: Record<string, string> = {};
+		try {
+			stored = JSON.parse(localStorage.getItem(DID_PARAMS_KEY) ?? "{}");
+		} catch {
+			/* ignore */
+		}
+
+		for (const [key, shouldPersist] of Object.entries(TRACKED_PARAMS)) {
+			const val = search.get(key) ?? (shouldPersist ? stored[key] : undefined);
+			if (val) {
+				params[key] = val;
+				if (shouldPersist) {
+					persist[key] = val;
+				}
+			}
+		}
+
+		if (Object.keys(persist).length > 0) {
+			try {
+				localStorage.setItem(DID_PARAMS_KEY, JSON.stringify(persist));
+			} catch {
+				/* ignore */
+			}
+		}
+
+		this.urlParams = params;
+	}
+
+	protected clearUrlParamStorage(): void {
+		this.urlParams = {};
+		if (!this.isServer()) {
+			try {
+				localStorage.removeItem(DID_PARAMS_KEY);
+			} catch {
+				/* ignore */
+			}
+		}
+	}
+
+	private clearStoredVisitorState(): void {
+		if (typeof window === "undefined") {
+			return;
+		}
+		this.anonymousId = undefined;
+		this.sessionId = undefined;
+		this.profileId = null;
+		this.sessionStartTime = 0;
+		this.urlParams = {};
+		clearStoredTrackingState();
+	}
+
+	currentPath(): string {
+		const path = buildPagePath(
+			window.location.origin,
+			window.location.pathname,
+			this.options.maskPatterns
+		);
+		return this.options.trackHashChanges
+			? `${path}${window.location.hash}`
+			: path;
+	}
+
+	getBaseContext(): EventContext {
+		if (this.isServer()) {
+			return {} as EventContext;
+		}
+
+		let width: number | undefined = window.innerWidth;
+		let height: number | undefined = window.innerHeight;
+		if (width < 240 || width > 10_000 || height < 240 || height > 10_000) {
+			width = undefined;
+			height = undefined;
+		}
+
+		return {
+			path: this.currentPath(),
+			title: document.title,
+			referrer: sanitizePageUrl(document.referrer),
+			viewport_size: width && height ? `${width}x${height}` : undefined,
+			timezone: this.cachedTimezone,
+			language: navigator.language,
+			...this.urlParams,
+		};
+	}
+
+	send(
+		event: BaseEvent & { isForceSend?: boolean }
+	): Promise<TrackerSendOutcome> {
+		if (this.shouldSkipTracking()) {
+			return Promise.resolve({ ok: true, status: "skipped", count: 0 });
+		}
+		if (this.options.filter && !this.options.filter(event)) {
+			return Promise.resolve({ ok: true, status: "skipped", count: 0 });
+		}
+
+		const samplingRate = this.options.samplingRate ?? 1.0;
+		if (samplingRate < 1.0 && Math.random() > samplingRate) {
+			return Promise.resolve({ ok: true, status: "skipped", count: 0 });
+		}
+
+		if (this.options.enableBatching && !event.isForceSend) {
+			return this.addToBatch(event);
+		}
+
+		return this.api
+			.fetch(
+				"/",
+				event,
+				{ keepalive: false },
+				{ client_id: this.options.clientId }
+			)
+			.then((result) => this.toSendOutcome(result, 1));
+	}
+
+	private _retryDelay(attempts: number): number {
+		const configured = this.options.initialRetryDelay ?? 500;
+		const base = Math.max(
+			MIN_RETRY_DELAY,
+			Math.min(configured, MAX_RETRY_DELAY)
+		);
+		const exponent = Math.min(Math.max(0, attempts - 1), 16);
+		return Math.min(base * 2 ** exponent, MAX_RETRY_DELAY);
+	}
+
+	private _scheduleQueueFlush<T>(
+		queue: T[],
+		meta: QueueMeta,
+		delay: number
+	): void {
+		if (meta.timer === null) {
+			meta.timer = setTimeout(() => this._flushQueue(queue, meta), delay);
+		}
+	}
+
+	private _enqueue<T>(queue: T[], meta: QueueMeta, item: T): void {
+		queue.push(item);
+		this._scheduleQueueFlush(queue, meta, this.options.batchTimeout ?? 5000);
+		if (queue.length >= meta.threshold) {
+			this._flushQueue(queue, meta);
+		}
+	}
+
+	private async _flushQueue<T>(
+		queue: T[],
+		meta: QueueMeta
+	): Promise<TrackerSendOutcome> {
+		if (this.shouldBlockQueuedDelivery()) {
+			if (meta.timer) {
+				clearTimeout(meta.timer);
+				meta.timer = null;
+			}
+			queue.length = 0;
+			meta.retryAttempts = 0;
+			return { ok: true, status: "skipped", count: 0 };
+		}
+		if (meta.flushing) {
+			return { ok: true, status: "queued", count: queue.length };
+		}
+		if (meta.timer) {
+			clearTimeout(meta.timer);
+			meta.timer = null;
+		}
+		if (queue.length === 0) {
+			meta.retryAttempts = 0;
+			return { ok: true, status: "skipped", count: 0 };
+		}
+
+		const deliveryGeneration = this.deliveryGeneration;
+		meta.flushing = true;
+		meta.activeDeliveryGeneration = deliveryGeneration;
+		const items = queue.splice(0, meta.maxBatchSize);
+		meta.activeItems = items;
+		let retryScheduled = false;
+
+		try {
+			const result = await this.api.fetch(
+				meta.endpoint,
+				items,
+				{ keepalive: false },
+				{ [meta.queryParam]: this.options.clientId }
+			);
+			if (
+				deliveryGeneration === this.deliveryGeneration &&
+				!result.ok &&
+				result.retryable &&
+				!this.shouldBlockQueuedDelivery() &&
+				deliveryGeneration === this.deliveryGeneration
+			) {
+				queue.unshift(...items);
+				meta.retryAttempts += 1;
+				if (meta.timer) {
+					clearTimeout(meta.timer);
+					meta.timer = null;
+				}
+				this._scheduleQueueFlush(
+					queue,
+					meta,
+					this._retryDelay(meta.retryAttempts)
+				);
+				retryScheduled = true;
+			} else if (deliveryGeneration === this.deliveryGeneration) {
+				meta.retryAttempts = 0;
+			}
+			return this.toSendOutcome(result, items.length);
+		} finally {
+			if (meta.activeDeliveryGeneration === deliveryGeneration) {
+				meta.activeDeliveryGeneration = null;
+				meta.activeItems = null;
+				meta.flushing = false;
+				if (
+					queue.length > 0 &&
+					!retryScheduled &&
+					!this.shouldBlockQueuedDelivery()
+				) {
+					if (meta.timer) {
+						clearTimeout(meta.timer);
+						meta.timer = null;
+					}
+					this._scheduleQueueFlush(queue, meta, 0);
+				}
+			}
+		}
+	}
+
+	addToBatch(event: BaseEvent): Promise<TrackerSendOutcome> {
+		this._enqueue(this.batchQueue, this._meta.batch, event);
+		return Promise.resolve({ ok: true, status: "queued", count: 1 });
+	}
+
+	flushBatch() {
+		return this._flushQueue(this.batchQueue, this._meta.batch);
+	}
+
+	sendVital(event: WebVitalEvent): Promise<TrackerSendOutcome> {
+		if (this.shouldSkipTracking()) {
+			return Promise.resolve({ ok: true, status: "skipped", count: 0 });
+		}
+		this._enqueue(this.vitalsQueue, this._meta.vitals, event);
+		return Promise.resolve({ ok: true, status: "queued", count: 1 });
+	}
+
+	flushVitals() {
+		return this._flushQueue(this.vitalsQueue, this._meta.vitals);
+	}
+
+	sendError(error: ErrorSpan): Promise<TrackerSendOutcome> {
+		if (this.shouldSkipTracking()) {
+			return Promise.resolve({ ok: true, status: "skipped", count: 0 });
+		}
+		this._enqueue(this.errorsQueue, this._meta.errors, error);
+		return Promise.resolve({ ok: true, status: "queued", count: 1 });
+	}
+
+	flushErrors() {
+		return this._flushQueue(this.errorsQueue, this._meta.errors);
+	}
+
+	trackEvent(
+		name: string,
+		properties?: Record<string, unknown>
+	): Promise<TrackerSendOutcome> {
+		if (this.shouldSkipTracking()) {
+			return Promise.resolve({ ok: true, status: "skipped", count: 0 });
+		}
+
+		const event: TrackEventPayload = {
+			eventId: generateUUIDv4(),
+			name,
+			timestamp: Date.now(),
+			path: this.isServer() ? undefined : this.currentPath(),
+			properties,
+			anonymousId: this.anonymousId,
+			anonymizeVisitorIds: this.options.anonymizeVisitorIds,
+			profileId: this.profileId ?? undefined,
+			sessionId: this.sessionId,
+			websiteId: this.options.clientId,
+			source: "browser",
+		};
+
+		this._enqueue(this.trackQueue, this._meta.track, event);
+		return Promise.resolve({ ok: true, status: "queued", count: 1 });
+	}
+
+	flushTrack() {
+		return this._flushQueue(this.trackQueue, this._meta.track);
+	}
+
+	private toSendOutcome<T>(
+		result: HttpResult<T>,
+		count: number
+	): TrackerSendOutcome {
+		if (result.ok) {
+			return {
+				ok: true,
+				status: result.transport === "beacon" ? "queued" : "delivered",
+				count,
+			};
+		}
+		return {
+			ok: false,
+			status: "failed",
+			count,
+			code: result.code,
+			message: result.message,
+			statusCode: result.status,
+			retryable: result.retryable,
+			attempts: result.attempts,
+		};
+	}
+
+	sendBeacon(data: unknown, endpoint = "/vitals"): boolean {
+		if (
+			this.isServer() ||
+			this.shouldBlockQueuedDelivery() ||
+			!navigator.sendBeacon
+		) {
+			return false;
+		}
+
+		try {
+			// text/plain is CORS-safelisted, so an unload beacon does not depend on
+			// completing a preflight while the document is being torn down.
+			const blob = new Blob([JSON.stringify(data)], {
+				type: "text/plain;charset=UTF-8",
+			});
+			const baseUrl = this.options.apiUrl || "https://basket.datamate.cc";
+			// A true result only means the user agent accepted the payload for
+			// transfer; sendBeacon cannot acknowledge server-side persistence.
+			return navigator.sendBeacon(
+				`${baseUrl}${endpoint}?client_id=${encodeURIComponent(this.options.clientId)}`,
+				blob
+			);
+		} catch {
+			return false;
+		}
+	}
+
+	sendBatchBeacon(events: unknown[]): boolean {
+		return this.sendBeacon(events, "/batch");
+	}
+
+	onRouteChange(callback: (path: string) => void): () => void {
+		this.routeChangeCallbacks.push(callback);
+		return () => {
+			const index = this.routeChangeCallbacks.indexOf(callback);
+			if (index > -1) {
+				this.routeChangeCallbacks.splice(index, 1);
+			}
+		};
+	}
+
+	notifyRouteChange(path: string): void {
+		for (const callback of this.routeChangeCallbacks) {
+			try {
+				callback(path);
+			} catch {}
+		}
+	}
+}

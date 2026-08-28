@@ -1,0 +1,79 @@
+import type { Metadata } from "next";
+import { Footer } from "@/components/footer";
+import Section from "@/components/landing/section";
+
+import { StructuredData } from "@/components/structured-data";
+import AmbassadorForm from "./ambassador-form";
+import AmbassadorHero from "./ambassador-hero";
+import AmbassadorRewards from "./ambassador-rewards";
+
+export const metadata: Metadata = {
+	title: "Become an Ambassador | Datamate",
+	description:
+		"Join the Datamate Ambassador Program and help us build the future of privacy-first analytics",
+	alternates: {
+		canonical: "https://www.datamate.cc/ambassadors",
+	},
+	openGraph: {
+		title: "Become an Ambassador | Datamate",
+		description:
+			"Join the Datamate Ambassador Program and help us build the future of privacy-first analytics",
+		url: "https://www.datamate.cc/ambassadors",
+		images: ["/og-image.png"],
+	},
+};
+
+export default function AmbassadorsPage() {
+	const title = "Become an Ambassador | Datamate";
+	const description =
+		"Join the Datamate Ambassador Program and help us build the future of privacy-first analytics";
+	const url = "https://www.datamate.cc/ambassadors";
+
+	return (
+		<div className="overflow-hidden">
+			<StructuredData
+				page={{
+					title,
+					description,
+					url,
+				}}
+			/>
+			<Section className="overflow-hidden" id="ambassador-hero">
+				<AmbassadorHero />
+			</Section>
+
+			{/* Form Section */}
+			<Section
+				className="border-border border-t bg-background/30"
+				id="ambassador-form"
+			>
+				<div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+					<AmbassadorForm />
+				</div>
+			</Section>
+
+			{/* Rewards Section */}
+			<Section
+				className="border-border border-t border-b bg-background/50"
+				id="ambassador-rewards"
+			>
+				<div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8">
+					<AmbassadorRewards />
+				</div>
+			</Section>
+
+			{/* Gradient Divider */}
+			<div className="w-full">
+				<div className="mx-auto h-px max-w-6xl bg-linear-to-r from-transparent via-border/30 to-transparent" />
+			</div>
+
+			{/* Footer Section */}
+			<Footer />
+
+			{/* Final Gradient Divider */}
+			<div className="w-full">
+				<div className="mx-auto h-px max-w-6xl bg-linear-to-r from-transparent via-border/30 to-transparent" />
+			</div>
+		</div>
+	);
+}

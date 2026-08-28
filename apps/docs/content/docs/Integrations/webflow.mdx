@@ -1,0 +1,302 @@
+---
+title: Webflow
+description: Add privacy-first analytics to your Webflow site
+---
+
+import { Steps, Step } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { CodeBlock } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+Add Datamate's privacy-first analytics to your Webflow site to track page views, capture custom events, and gather insights about your visitors.
+
+## How to Add Datamate to Webflow
+
+<Steps>
+  <Step title="Get Your Tracking Script">
+    Navigate to your [Datamate dashboard](https://app.datamate.cc) to get your tracking code snippet.
+
+    <CodeBlock
+      language="html"
+      code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  async
+></script>`}
+    />
+  </Step>
+
+  <Step title="Add to Your Webflow Project">
+    In your Webflow project:
+    1. Go to **Site settings > Custom code**
+    2. Paste your Datamate snippet into the **Head code** section
+    3. Save and publish your changes
+  </Step>
+</Steps>
+
+<Callout type="info">
+  **Page View Tracking in Webflow**:
+
+  - **Standard Navigation**: Datamate automatically tracks each page load when users navigate between pages in Webflow
+  - **Interactions & Animations**: Webflow interactions that change content without changing the URL (like tabs or multi-step forms on a single page) won't trigger automatic page views. Use custom event tracking to track these interactions
+  - **Single-Page Sites**: If your Webflow site uses a single-page design with sections, only one page view will be tracked unless you implement custom event tracking for section views
+</Callout>
+
+## Custom Event Tracking in Webflow
+
+Track custom events in Webflow by adding JavaScript code. You can add this in **Site Settings > Custom Code** (for global scripts) or within an **Embed** element on specific pages.
+
+### Tracking Button Clicks
+
+Track when users click specific buttons:
+
+1. **Give your button an ID:**
+   - Select the button element in the Webflow Designer
+   - Go to the **Settings** panel (cog icon)
+   - Under **General**, set a unique **ID** for the button (e.g., `cta-button`)
+
+2. **Add Custom JavaScript:**
+   Add this script in **Site Settings > Custom Code > Footer Code** for global availability, or in an Embed element on the page:
+
+<CodeBlock
+  language="html"
+  filename="Footer Code or Embed"
+  code={`<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+  var button = document.getElementById('cta-button');
+  if (button && window.datamate) {
+    button.addEventListener('click', function() {
+      window.datamate.track('button_click', {
+        button_id: 'cta-button',
+        button_text: button.textContent || button.innerText,
+        page_path: window.location.pathname
+      });
+    });
+  }
+});
+</script>`}
+/>
+
+### Tracking Form Submissions
+
+Track form submissions from Webflow forms:
+
+1. **Give your form an ID:**
+   - Select the Form Block element
+   - Go to the **Settings** panel
+   - Set a unique **ID** (e.g., `contact-form`)
+
+2. **Add Custom JavaScript:**
+
+<CodeBlock
+  language="html"
+  filename="Footer Code or Embed"
+  code={`<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+  var form = document.getElementById('contact-form');
+  if (form && window.datamate) {
+    form.addEventListener('submit', function() {
+      window.datamate.track('form_submit', {
+        form_id: 'contact-form',
+        form_type: 'contact',
+        page_path: window.location.pathname
+      });
+    });
+  }
+});
+</script>`}
+/>
+
+   **Note**: For Webflow's native form handling, you may want to track the submit button click instead, or hook into Webflow's form success state if available.
+
+### Tracking Section Views
+
+Track when users view specific sections on a single-page site:
+
+<CodeBlock
+  language="html"
+  filename="Footer Code"
+  code={`<script type="text/javascript">
+document.addEventListener('DOMContentLoaded', function() {
+  if (!window.datamate) return;
+
+  // Track when a section comes into view
+  var observer = new IntersectionObserver(function(entries) {
+    entries.forEach(function(entry) {
+      if (entry.isIntersecting) {
+        var sectionId = entry.target.id || entry.target.className;
+        window.datamate.track('section_view', {
+          section_id: sectionId,
+          page_path: window.location.pathname
+        });
+        // Unobserve after tracking to avoid duplicate events
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.5 });
+
+  // Observe sections with data-track-section attribute
+  document.querySelectorAll('[data-track-section]').forEach(function(section) {
+    observer.observe(section);
+  });
+});
+</script>`}
+/>
+
+Then add `data-track-section` attribute to sections you want to track in the Webflow Designer.
+
+### Using Data Attributes
+
+Enable automatic tracking with data attributes by adding this to your script tag:
+
+<CodeBlock
+  language="html"
+  code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-track-attributes
+  async
+></script>`}
+/>
+
+Then add `data-track` attributes directly to elements in Webflow:
+
+<CodeBlock
+  language="html"
+  code={`<!-- Button with automatic tracking -->
+<button data-track="cta_click" data-button-type="primary">
+  Get Started
+</button>
+
+<!-- Link with tracking -->
+<a href="/pricing" data-track="pricing_link_click" data-link-location="header">
+  View Pricing
+</a>`}
+/>
+
+<Callout type="warn">
+  **Important Notes**:
+
+  - Place custom JavaScript in **Footer Code** for scripts that need the DOM to be ready
+  - Test thoroughly as Webflow's interactions might require specific timing
+  - Always check if `window.datamate` exists before calling tracking methods
+  - Use `DOMContentLoaded` event listener to ensure elements are available before attaching event listeners
+</Callout>
+
+## Configuration Options
+
+Enable additional tracking features by adding data attributes to your script tag:
+
+<CodeBlock
+  language="html"
+  code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-track-attributes
+  data-track-outgoing-links
+  data-track-interactions
+  data-track-web-vitals
+  data-track-errors
+  async
+></script>`}
+/>
+
+## Common Use Cases
+
+### E-commerce Tracking
+
+Track product views and add-to-cart events:
+
+<CodeBlock
+  language="javascript"
+  code={`// Track product view
+window.datamate.track('product_view', {
+  product_id: 'product-123',
+  product_name: 'Example Product',
+  price: 29.99
+});
+
+// Track add to cart
+window.datamate.track('add_to_cart', {
+  product_id: 'product-123',
+  quantity: 1
+});`}
+/>
+
+### Newsletter Signups
+
+Track newsletter subscriptions:
+
+<CodeBlock
+  language="javascript"
+  code={`var newsletterForm = document.getElementById('newsletter-form');
+if (newsletterForm && window.datamate) {
+  newsletterForm.addEventListener('submit', function() {
+    window.datamate.track('newsletter_signup', {
+      form_location: 'footer',
+      page_path: window.location.pathname
+    });
+  });
+}`}
+/>
+
+### Video Engagement
+
+Track video plays and completions:
+
+<CodeBlock
+  language="javascript"
+  code={`var video = document.getElementById('hero-video');
+if (video && window.datamate) {
+  video.addEventListener('play', function() {
+    window.datamate.track('video_play', {
+      video_id: 'hero-video',
+      video_title: 'Product Demo'
+    });
+  });
+
+  video.addEventListener('ended', function() {
+    window.datamate.track('video_complete', {
+      video_id: 'hero-video'
+    });
+  });
+}`}
+/>
+
+## Troubleshooting
+
+### Script Not Loading
+
+- Verify the script is in the **Head code** section of Site Settings
+- Check browser console for errors
+- Ensure your Client ID is correct
+- Clear Webflow cache and republish
+
+### Events Not Tracking
+
+- Confirm `window.datamate` exists before calling tracking methods
+- Check that elements exist before attaching event listeners
+- Use `DOMContentLoaded` to ensure DOM is ready
+- Verify events appear in your Datamate dashboard after 2-3 minutes
+
+### Webflow Interactions
+
+- Custom scripts may need to wait for Webflow interactions to initialize
+- Consider using `setTimeout` for timing-sensitive tracking
+- Test in different browsers and devices
+
+## Related Integrations
+
+<Cards>
+  <Card title="Framer" href="/docs/Integrations/framer">
+    No-code integration for Framer websites.
+  </Card>
+  <Card title="Wix" href="/docs/Integrations/wix">
+    Simple setup for Wix websites.
+  </Card>
+  <Card title="Squarespace" href="/docs/Integrations/squarespace">
+    Code injection setup for Squarespace sites.
+  </Card>
+</Cards>
+
+Need help with your Webflow integration? Contact us at [support@datamate.cc](mailto:support@datamate.cc).

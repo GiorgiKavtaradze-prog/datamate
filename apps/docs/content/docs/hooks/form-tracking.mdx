@@ -1,0 +1,90 @@
+---
+title: Form Tracking
+description: Track form submissions with validation state and error patterns
+---
+
+import { CodeBlock } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+Track form submissions to understand conversion rates, validation errors, and user behavior patterns.
+
+## Implementation
+
+<CodeBlock 
+  language="tsx"
+  code={`import { track } from "@datamate/sdk";
+import { useCallback } from "react";
+
+export function useFormTracking(formName: string) {
+  const trackSubmit = useCallback(
+    (success: boolean, errors?: Record<string, string[]>) => {
+      track("form_submit", {
+        form_name: formName,
+        success,
+        error_count: errors ? Object.keys(errors).length : 0,
+        has_errors: !!errors && Object.keys(errors).length > 0,
+      });
+    },
+    [formName]
+  );
+
+  return { trackSubmit };
+}`}
+/>
+
+## Usage
+
+<CodeBlock 
+  language="tsx"
+  code={`function ContactForm() {
+  const { trackSubmit } = useFormTracking("contact");
+
+  const handleSubmit = async (data: FormData) => {
+    try {
+      await submitForm(data);
+      trackSubmit(true);
+      toast.success("Message sent!");
+    } catch (error) {
+      trackSubmit(false, { general: ["Failed to send message"] });
+      toast.error("Failed to send message");
+    }
+  };
+
+  return <form onSubmit={handleSubmit}>...</form>;
+}`}
+/>
+
+## What It Tracks
+
+- **Event**: `form_submit`
+- **Properties**:
+  - `form_name`: Name identifier for the form
+  - `success`: Whether submission was successful
+  - `error_count`: Number of validation errors
+  - `has_errors`: Boolean indicating if errors occurred
+
+## Benefits
+
+- **Conversion Analysis**: Track form completion rates
+- **Error Patterns**: Identify common validation issues
+- **User Experience**: Understand where users struggle with forms
+
+<Callout type="info">
+Track both successful and failed submissions to get a complete picture of form performance.
+</Callout>
+
+## Related
+
+<Cards>
+  <Card title="Toast Tracking" href="/docs/hooks/toast-tracking">
+    Track toast notifications automatically
+  </Card>
+  <Card title="Modal Tracking" href="/docs/hooks/modal-tracking">
+    Track when modals are opened and closed
+  </Card>
+  <Card title="Hooks Overview" href="/docs/hooks">
+    View all available tracking hooks
+  </Card>
+</Cards>
+

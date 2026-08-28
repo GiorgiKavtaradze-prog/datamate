@@ -1,0 +1,61 @@
+"use client";
+
+import { useParams } from "next/navigation";
+import { PageNavigation } from "@/components/layout/page-navigation";
+import { ChartBarIcon, ListBulletsIcon } from "@datamate/ui/icons";
+
+export default function EventsLayout({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
+	const params = useParams();
+	const websiteId = params.id as string;
+	const eventName = params.eventName as string | undefined;
+
+	const isDetailPage = Boolean(eventName);
+
+	if (isDetailPage && eventName) {
+		const decodedEventName = decodeURIComponent(eventName);
+		return (
+			<div className="flex h-full min-h-0 flex-col">
+				<PageNavigation
+					breadcrumb={{
+						label: "Events",
+						href: `/demo/${websiteId}/events`,
+					}}
+					currentPage={decodedEventName}
+					variant="breadcrumb"
+				/>
+				<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+					{children}
+				</div>
+			</div>
+		);
+	}
+
+	return (
+		<div className="flex h-full min-h-0 flex-col">
+			<PageNavigation
+				tabs={[
+					{
+						id: "summary",
+						label: "Summary",
+						href: `/demo/${websiteId}/events`,
+						icon: ChartBarIcon,
+					},
+					{
+						id: "stream",
+						label: "Stream",
+						href: `/demo/${websiteId}/events/stream`,
+						icon: ListBulletsIcon,
+					},
+				]}
+				variant="tabs"
+			/>
+			<div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+				{children}
+			</div>
+		</div>
+	);
+}

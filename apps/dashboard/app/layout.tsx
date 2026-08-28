@@ -1,0 +1,170 @@
+import "./globals.css";
+
+import { OpenAiAdsPixel } from "@/components/openai-ads-pixel";
+import { Toaster } from "@/components/ui/sonner";
+import { APP_URL } from "@/lib/app-url";
+import { DatamateDevtools } from "@datamate/devtools/react";
+import { publicConfig } from "@datamate/env/public";
+import { Datamate } from "@datamate/sdk/react";
+import { readBooleanEnv } from "@datamate/env/boolean";
+import type { Metadata, Viewport } from "next";
+import localFont from "next/font/local";
+import Providers from "./providers";
+
+const ltSuperior = localFont({
+	src: [
+		{ path: "../fonts/lt-superior/light.otf", weight: "300" },
+		{ path: "../fonts/lt-superior/regular.otf", weight: "400" },
+		{ path: "../fonts/lt-superior/medium.otf", weight: "500" },
+		{ path: "../fonts/lt-superior/semibold.otf", weight: "600" },
+		{ path: "../fonts/lt-superior/bold.otf", weight: "700" },
+		{ path: "../fonts/lt-superior/extrabold.otf", weight: "800" },
+	],
+	variable: "--font-lt-superior",
+	display: "swap",
+});
+
+const ltSuperiorMono = localFont({
+	src: [
+		{ path: "../fonts/lt-superior-mono/regular.otf", weight: "400" },
+		{ path: "../fonts/lt-superior-mono/medium.otf", weight: "500" },
+		{ path: "../fonts/lt-superior-mono/semibold.otf", weight: "600" },
+		{ path: "../fonts/lt-superior-mono/bold.otf", weight: "700" },
+	],
+	variable: "--font-lt-superior-mono",
+	display: "swap",
+});
+
+export const metadata: Metadata = {
+	metadataBase: new URL(APP_URL),
+	title: {
+		template: "%s | Datamate Dashboard",
+		default: "Datamate Dashboard",
+	},
+	description:
+		"Powerful analytics dashboard for your websites. Track visitors, monitor performance, and gain insights into your audience.",
+	keywords: [
+		"analytics",
+		"dashboard",
+		"monitoring",
+		"statistics",
+		"web analytics",
+		"tracking",
+		"website insights",
+		"visitor analytics",
+		"performance monitoring",
+		"user behavior",
+	],
+	authors: [{ name: "Datamate", url: "https://www.datamate.cc" }],
+	creator: "Datamate",
+	publisher: "Datamate",
+	openGraph: {
+		type: "website",
+		locale: "en_US",
+		url: APP_URL,
+		title: "Datamate Dashboard",
+		description:
+			"Powerful analytics dashboard for your websites. Track visitors, monitor performance, and gain insights into your audience.",
+		siteName: "Datamate Dashboard",
+		images: [
+			{
+				url: "/og-image.png",
+				width: 1200,
+				height: 630,
+				alt: "Datamate Dashboard Preview",
+			},
+		],
+	},
+	twitter: {
+		card: "summary_large_image",
+		title: "Datamate Dashboard",
+		description:
+			"Powerful analytics dashboard for your websites. Track visitors, monitor performance, and gain insights into your audience.",
+		images: ["/og-image.png"],
+		creator: "@datamate",
+	},
+	robots: {
+		index: true,
+		follow: true,
+		googleBot: {
+			index: true,
+			follow: true,
+			"max-video-preview": -1,
+			"max-image-preview": "large",
+			"max-snippet": -1,
+		},
+	},
+	alternates: {
+		canonical: APP_URL,
+	},
+	appleWebApp: {
+		title: "Datamate",
+	},
+};
+
+export const viewport: Viewport = {
+	themeColor: [
+		{ media: "(prefers-color-scheme: light)", color: "white" },
+		{ media: "(prefers-color-scheme: dark)", color: "#1a1a1a" },
+	],
+	width: "device-width",
+	initialScale: 1,
+	maximumScale: 5,
+	userScalable: true,
+};
+
+export default function RootLayout({
+	children,
+}: Readonly<{
+	children: React.ReactNode;
+}>) {
+	const isLocalhost = process.env.NODE_ENV === "development";
+	const isE2E = readBooleanEnv("DATAMATE_E2E_MODE");
+
+	return (
+		<html
+			className={`${ltSuperior.className} ${ltSuperior.variable} ${ltSuperiorMono.variable} h-full overflow-hidden`}
+			data-scroll-behavior="smooth"
+			lang="en"
+			suppressHydrationWarning
+		>
+			<body className="flex h-full min-h-0 flex-col overflow-hidden bg-background text-foreground antialiased">
+				<Providers>
+					<main className="flex min-h-0 flex-1 flex-col overflow-hidden">
+						{children}
+					</main>
+				</Providers>
+				<Toaster />
+				{isE2E ? null : (
+					<Datamate
+						apiUrl={publicConfig.urls.basket}
+						clientId={
+							isLocalhost
+								? "5ced32e5-0219-4e75-a18a-ad9826f85698"
+								: "3ed1fce1-5a56-4cb6-a977-66864f6d18e3"
+						}
+						maskPatterns={[
+							"/websites/*/users/*",
+							"/websites/*/agent/*",
+							"/websites/*",
+							"/agent/*",
+							"/invitations/*",
+							"/links/*",
+							"/monitors/status-pages/*",
+							"/monitors/*",
+							"/demo/*",
+							"/public/*",
+							"/dby/l/*",
+						]}
+						scriptUrl="https://cdn.datamate.cc/datamate-debug.js"
+						trackAttributes={true}
+						trackErrors={true}
+						trackWebVitals={true}
+					/>
+				)}
+				{isLocalhost || isE2E ? null : <OpenAiAdsPixel />}
+				{isLocalhost && !isE2E ? <DatamateDevtools /> : null}
+			</body>
+		</html>
+	);
+}

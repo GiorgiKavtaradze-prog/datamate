@@ -1,0 +1,30 @@
+{
+  "mode": "pre",
+  "tag": "beta",
+  "initialVersions": {
+    "@datamate/api": "1.0.1",
+    "@datamate/basket": "1.0.50",
+    "@datamate/dashboard": "0.1.0",
+    "@datamate/docs": "0.0.0",
+    "@datamate/links": "1.0.0",
+    "@datamate/uptime": "1.0.0",
+    "@datamate/ai": "0.0.1",
+    "@datamate/api-keys": "1.0.0",
+    "@datamate/auth": "0.0.1",
+    "@datamate/cache": "0.0.120",
+    "@datamate/db": "1.0.0",
+    "@datamate/devtools": "0.0.0",
+    "@datamate/email": "0.0.0",
+    "@datamate/env": "0.1.0",
+    "@datamate/notifications": "0.0.1",
+    "@datamate/redis": "1.0.0",
+    "@datamate/rpc": "0.1.0",
+    "@datamate/sdk": "2.4.0",
+    "@datamate/services": "1.0.0",
+    "@datamate/shared": "0.0.1",
+    "@datamate/tracker": "0.0.1",
+    "@datamate/ui": "0.0.0",
+    "@datamate/validation": "0.1.0"
+  },
+  "changesets": ["devtools-initial-beta"]
+}

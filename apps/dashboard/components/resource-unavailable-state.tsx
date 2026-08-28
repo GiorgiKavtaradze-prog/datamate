@@ -1,0 +1,35 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import { LockIcon } from "@datamate/ui/icons";
+import { EmptyState } from "@datamate/ui";
+
+interface ResourceUnavailableStateProps {
+	backHref: string;
+	backLabel: string;
+	className?: string;
+}
+
+export function ResourceUnavailableState({
+	backHref,
+	backLabel,
+	className,
+}: ResourceUnavailableStateProps) {
+	const router = useRouter();
+
+	return (
+		<EmptyState
+			action={{
+				label: backLabel,
+				onClick: () => router.push(backHref),
+				variant: "secondary",
+			}}
+			className={className}
+			description="This resource is unavailable in the current organization. Switch organizations or check that you have access."
+			icon={<LockIcon />}
+			isMainContent
+			title="Resource unavailable"
+			variant="error"
+		/>
+	);
+}

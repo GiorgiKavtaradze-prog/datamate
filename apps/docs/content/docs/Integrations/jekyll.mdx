@@ -1,0 +1,243 @@
+---
+title: Jekyll
+description: Add privacy-first analytics to your Jekyll static site
+---
+
+import { Steps, Step } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { CodeBlock } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+Add Datamate's privacy-first analytics to your Jekyll static site by adding the tracking script to your site's main layout file or by creating an include file.
+
+## How to Add Datamate to Jekyll
+
+<Steps>
+  <Step title="Get Your Tracking Script">
+    Get your Datamate tracking script from your [Datamate dashboard](https://app.datamate.cc). It will look like this:
+
+    <CodeBlock
+      language="html"
+      code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  async
+></script>`}
+    />
+
+    Replace `YOUR_CLIENT_ID` with your actual Client ID from your Datamate dashboard.
+  </Step>
+</Steps>
+
+## Option A: Add to Default Layout
+
+The simplest way is to add the script directly to your default layout file.
+
+<Steps>
+  <Step title="Locate Your Main Layout File">
+    In your Jekyll project, find your main layout file. This is often `_layouts/default.html`.
+  </Step>
+
+  <Step title="Add the Tracking Script">
+    Open this file and paste the Datamate tracking script just before the closing `</body>` tag.
+
+    <CodeBlock
+      language="html"
+      filename="_layouts/default.html"
+      code={`<!DOCTYPE html>
+<html lang="{{ site.lang | default: 'en' }}">
+<head>
+    <meta charset="utf-8">
+    <title>{{ site.title }}</title>
+</head>
+<body>
+    {{ content }}
+    <!-- Other footer content -->
+
+    <!-- Datamate Analytics Script -->
+    {% raw %}{% if jekyll.environment == "production" %}{% endraw %}
+        <script
+            src="https://cdn.datamate.cc/datamate.js"
+            data-client-id="YOUR_CLIENT_ID"
+            async
+        ></script>
+    {% raw %}{% endif %}{% endraw %}
+</body>
+</html>`}
+    />
+
+    **Explanation:**
+
+    - `{% raw %}{% if jekyll.environment == "production" %}{% endraw %}`: This Liquid tag ensures the script is only included when your site is built for production (e.g., when `JEKYLL_ENV=production jekyll build`). This prevents tracking your local development views.
+    - Replace `YOUR_CLIENT_ID` with your actual Client ID.
+  </Step>
+</Steps>
+
+## Option B: Create an Include File (Recommended)
+
+A cleaner approach is to create an include file for the script.
+
+<Steps>
+  <Step title="Create the Include File">
+    In your Jekyll project, navigate to the `_includes/` directory. If it doesn't exist, create it.
+
+    Create a new file named `datamate-analytics.html` inside `_includes/` and paste the following:
+
+    <CodeBlock
+      language="html"
+      filename="_includes/datamate-analytics.html"
+      code={`{% raw %}{% comment %} Datamate Analytics Include {% endcomment %}
+{% if jekyll.environment == "production" and site.datamate_client_id %}
+    <script
+        src="https://cdn.datamate.cc/datamate.js"
+        data-client-id="{{ site.datamate_client_id }}"
+        async
+    ></script>
+{% endif %}{% endraw %}`}
+    />
+  </Step>
+
+  <Step title="Include in Layout">
+    Open your main layout file (e.g., `_layouts/default.html`).
+
+    Just before the closing `</body>` tag, add:
+
+    <CodeBlock
+      language="html"
+      filename="_layouts/default.html"
+      code={`<!DOCTYPE html>
+<html lang="{{ site.lang | default: 'en' }}">
+<head>
+    <meta charset="utf-8">
+    <title>{{ site.title }}</title>
+</head>
+<body>
+    {{ content }}
+    <!-- Other footer content -->
+
+    {% raw %}{% include datamate-analytics.html %}{% endraw %}
+</body>
+</html>`}
+    />
+  </Step>
+
+  <Step title="Configure _config.yml">
+    Open your `_config.yml` file and add your Datamate Client ID:
+
+    <CodeBlock
+      language="yaml"
+      filename="_config.yml"
+      code={`# Datamate Analytics Configuration
+datamate_client_id: "YOUR_CLIENT_ID"`}
+    />
+
+    This method keeps your credentials in the configuration file and makes the script inclusion conditional on `datamate_client_id` being set.
+  </Step>
+</Steps>
+
+## Configuration Options
+
+Enable additional tracking features by modifying the include file:
+
+<CodeBlock
+  language="html"
+  filename="_includes/datamate-analytics.html"
+  code={`{% raw %}{% comment %} Datamate Analytics Include with Options {% endcomment %}
+{% if jekyll.environment == "production" and site.datamate_client_id %}
+    <script
+        src="https://cdn.datamate.cc/datamate.js"
+        data-client-id="{{ site.datamate_client_id }}"
+        data-track-attributes
+        data-track-outgoing-links
+        data-track-interactions
+        data-track-web-vitals
+        data-track-errors
+        async
+    ></script>
+{% endif %}{% endraw %}`}
+/>
+
+## Custom Event Tracking
+
+Track custom events in your Jekyll posts and pages using data attributes or inline JavaScript.
+
+### Using Data Attributes
+
+Enable automatic tracking with data attributes:
+
+<CodeBlock
+  language="html"
+  code={`<!-- In your Jekyll posts or pages -->
+<button data-track="cta_click" data-button-type="primary">
+    Get Started
+</button>
+
+<a href="/pricing" data-track="pricing_link_click" data-link-location="header">
+    View Pricing
+</a>`}
+/>
+
+### Inline JavaScript
+
+Add custom tracking to specific pages or posts:
+
+<CodeBlock
+  language="html"
+  code={`<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var button = document.getElementById('special-button');
+    if (button && window.datamate) {
+        button.addEventListener('click', function() {
+            window.datamate.track('button_click', {
+                button_id: 'special-button',
+                page_path: window.location.pathname
+            });
+        });
+    }
+});
+</script>`}
+/>
+
+### In Jekyll Posts
+
+Add tracking to specific blog posts using front matter and includes:
+
+<CodeBlock
+  language="markdown"
+  filename="_posts/2024-01-01-my-post.md"
+  code={`---
+title: My Post
+track_events: true
+---
+
+# My Post
+
+Content here...
+
+{% raw %}{% if page.track_events %}{% endraw %}
+<script>
+if (window.datamate) {
+    window.datamate.track('blog_post_view', {
+        post_title: '{{ page.title }}',
+        post_url: '{{ page.url }}'
+    });
+}
+</script>
+{% raw %}{% endif %}{% endraw %}`}
+/>
+
+## Related Integrations
+
+<Cards>
+  <Card title="Hugo" href="/docs/Integrations/hugo">
+    Hugo static site integration with partial templates.
+  </Card>
+  <Card title="WordPress" href="/docs/Integrations/wordpress">
+    Plugin or manual setup for WordPress sites.
+  </Card>
+  <Card title="React" href="/docs/Integrations/react">
+    TypeScript support with React hooks and components.
+  </Card>
+</Cards>
+
+Need help with your Jekyll integration? Contact us at [support@datamate.cc](mailto:support@datamate.cc).

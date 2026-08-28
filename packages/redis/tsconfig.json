@@ -1,0 +1,5 @@
+{
+  "extends": "../../tsconfig/default.json",
+  "include": ["*.ts", "cacheable.ts", "drizzle-cache.ts", "redis.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.ts", "**/*.spec.ts"]
+}

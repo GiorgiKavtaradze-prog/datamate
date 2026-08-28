@@ -1,0 +1,297 @@
+---
+title: WordPress
+description: Add privacy-first analytics to your WordPress site
+---
+
+import { Tabs, Tab } from "@/components/docs";
+import { Steps, Step } from "@/components/docs";
+import { CodeBlock } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+Add Datamate's privacy-first analytics to your WordPress site with an asynchronous tracker that is about 12 KB gzipped. No cookies, fully GDPR compliant.
+
+## Installation Methods
+
+Choose the installation method that works best for your WordPress setup. If you're using WordPress.com (hosted), you'll need to use a plugin since direct theme editing isn't available. For self-hosted WordPress.org sites, you have more flexibility.
+
+<Tabs items={['Plugin Method', 'functions.php Method', 'header.php Method']}>
+  <Tab>
+    **Using a Plugin (Recommended)**
+
+    The safest and easiest way to add Datamate to WordPress is using a plugin that allows you to inject scripts without modifying theme files. This works for both WordPress.com and self-hosted installations.
+
+    <Steps>
+      <Step title="Install a Script Injection Plugin">
+        Install a plugin like [Insert Headers and Footers](https://wordpress.org/plugins/insert-headers-and-footers/) from the WordPress plugin directory. This plugin lets you add scripts to your site's header or footer without touching theme files.
+      </Step>
+      <Step title="Add Your Datamate Script">
+        In the plugin settings, paste your Datamate tracking script in the header section:
+
+        <CodeBlock
+          language="html"
+          code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  async
+></script>`}
+        />
+      </Step>
+      <Step title="Save and Verify">
+        Save your changes and wait a few minutes, then check your [Datamate dashboard](https://app.datamate.cc) to confirm tracking is working.
+
+        **Tip**: If the script doesn't load in the header, try adding it to the footer section instead. Some WordPress configurations work better with scripts in the body.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab>
+    **Using functions.php**
+
+    For self-hosted WordPress sites, you can add Datamate directly through your theme's `functions.php` file. This method uses WordPress hooks, which is cleaner than editing HTML directly.
+
+    <Steps>
+      <Step title="Access Your Theme Files">
+        Navigate to **Appearance > Theme File Editor** in your WordPress dashboard. For safer editing, consider using FTP/SFTP or your hosting control panel's file manager instead.
+      </Step>
+      <Step title="Open functions.php">
+        Open your active theme's `functions.php` file. **Important**: If you're using a parent theme, create a child theme first to prevent losing changes when the theme updates.
+      </Step>
+      <Step title="Add the Tracking Function">
+        Add this code at the end of your `functions.php` file:
+
+        <CodeBlock
+          language="php"
+          filename="functions.php"
+          code={`function add_datamate_analytics() {
+  ?>
+  <script
+    src="https://cdn.datamate.cc/datamate.js"
+    data-client-id="YOUR_CLIENT_ID"
+    async
+  ></script>
+  <?php
+}
+add_action('wp_head', 'add_datamate_analytics');`}
+        />
+
+        Replace `YOUR_CLIENT_ID` with your actual Client ID from your Datamate dashboard.
+      </Step>
+      <Step title="Save and Test">
+        Save the file and visit your site. Check the browser console for any errors and verify tracking in your Datamate dashboard.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab>
+    **Using header.php**
+
+    You can also add the script directly to your theme's `header.php` file. This method works but is less flexible than using `functions.php` since it requires direct HTML editing.
+
+    <Steps>
+      <Step title="Access Theme Editor">
+        Go to **Appearance > Theme File Editor** and select `header.php`. Again, using FTP or a file manager is safer if you're not comfortable editing files directly.
+      </Step>
+      <Step title="Find the Closing Head Tag">
+        Locate the closing `</head>` tag in your `header.php` file. You'll add the script just before this tag.
+      </Step>
+      <Step title="Insert the Script">
+        Add your Datamate script right before `</head>`:
+
+        <CodeBlock
+          language="html"
+          filename="header.php"
+          code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  async
+></script>
+</head>`}
+        />
+      </Step>
+      <Step title="Save Changes">
+        Save the file and test your site. Remember to replace `YOUR_CLIENT_ID` with your actual Client ID.
+      </Step>
+    </Steps>
+  </Tab>
+</Tabs>
+
+## Configuration Options
+
+### Basic Tracking Setup
+
+Enable essential tracking features for most WordPress sites:
+
+<CodeBlock
+  language="html"
+  code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-track-hash-changes
+  async
+></script>`}
+/>
+
+### Enhanced Tracking Setup
+
+For more detailed analytics, enable additional tracking options:
+
+<CodeBlock
+  language="html"
+  code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  data-track-attributes
+  data-track-outgoing-links
+  data-track-interactions
+  data-track-web-vitals
+  data-track-errors
+  async
+></script>`}
+/>
+
+## WordPress-Specific Integrations
+
+### Form Submission Tracking
+
+Track submissions from popular WordPress form plugins using data attributes:
+
+<CodeBlock
+  language="html"
+  code={`<!-- Contact Form 7 -->
+<input type="hidden" data-track="form_submit" data-form-type="contact">
+
+<!-- Gravity Forms -->
+<input type="hidden" data-track="form_submit" data-form-type="gravity">
+
+<!-- WPForms -->
+<input type="hidden" data-track="form_submit" data-form-type="wpforms">`}
+/>
+
+### Custom Post Type Analytics
+
+Track views of custom post types by adding this to your theme's `functions.php`:
+
+<CodeBlock
+  language="php"
+  filename="functions.php"
+  code={`function track_custom_post_types() {
+  if (is_singular('your_custom_post_type')) {
+    echo '<script>
+      if (window.datamate) {
+        datamate.track("custom_post_view", {
+          post_type: "' . esc_js(get_post_type()) . '",
+          post_id: ' . get_the_ID() . '
+        });
+      }
+    </script>';
+  }
+}
+add_action('wp_footer', 'track_custom_post_types');`}
+/>
+
+## Performance Benefits
+
+Datamate is designed to have minimal impact on your WordPress site's performance:
+
+- **Lightweight**: About 12 KB gzipped for the current tracker bundle
+- **Non-blocking**: Loads asynchronously without affecting page speed
+- **Core Web Vitals**: Can collect field performance data when enabled
+- **Server Friendly**: Minimal server load compared to other analytics solutions
+
+## Common Use Cases
+
+### Membership Sites
+
+Track premium content engagement:
+
+<CodeBlock
+  language="html"
+  code={`<button 
+  data-track="premium_content_view" 
+  data-content-type="video"
+>
+  Watch Premium Video
+</button>`}
+/>
+
+### Blog Analytics
+
+Track article engagement and reading patterns:
+
+<CodeBlock
+  language="html"
+  code={`<article 
+  data-track="article_view" 
+  data-category="tutorials" 
+  data-author="author-name"
+>
+  <!-- Your article content -->
+</article>`}
+/>
+
+### Lead Generation
+
+Track conversion events and CTA clicks:
+
+<CodeBlock
+  language="html"
+  code={`<a 
+  href="/contact" 
+  data-track="cta_click" 
+  data-cta-type="contact"
+>
+  Get Quote
+</a>`}
+/>
+
+## Troubleshooting
+
+### Script Not Loading
+
+If Datamate isn't tracking:
+
+1. **Check Browser Console**: Open developer tools and look for errors or the "Datamate initialized" message
+2. **Verify Script Placement**: Ensure the script is in the `<head>` or before `</body>`
+3. **Clear Cache**: Clear your WordPress cache (WP Rocket, W3 Total Cache, etc.) and browser cache
+4. **Test in Incognito**: Use incognito/private browsing to avoid cache issues
+
+### Plugin Conflicts
+
+If you're experiencing issues:
+
+- Temporarily deactivate other analytics plugins to identify conflicts
+- Check if your security plugin is blocking the script
+- Verify your theme includes `wp_head()` in `header.php` if using the functions.php method
+
+### Verification
+
+After installation, verify tracking is working:
+
+1. Visit your site and navigate through a few pages
+2. Wait 2-3 minutes for data to process
+3. Check your [Datamate dashboard](https://app.datamate.cc) for page views
+4. Use browser dev tools Network tab to confirm requests are being sent
+
+## WordPress Multisite
+
+For WordPress multisite networks:
+
+1. **Individual Site Configuration**: Add the Datamate script to each site individually using one of the methods above
+2. **Unique Client IDs**: Each site should have its own Client ID for separate analytics
+3. **Plugin Management**: Consider using the Insert Headers and Footers plugin for easier management across multiple sites
+
+## Related Integrations
+
+<Cards>
+  <Card title="Wix" href="/docs/Integrations/wix">
+    Simple setup for Wix websites.
+  </Card>
+  <Card title="Squarespace" href="/docs/Integrations/squarespace">
+    Code injection setup for Squarespace sites.
+  </Card>
+  <Card title="Webflow" href="/docs/Integrations/webflow">
+    Visual builder integration for Webflow sites.
+  </Card>
+</Cards>
+
+Need help with your WordPress integration? Contact us at [support@datamate.cc](mailto:support@datamate.cc).

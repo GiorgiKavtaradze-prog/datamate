@@ -1,0 +1,240 @@
+---
+title: Hugo
+description: Add privacy-first analytics to your Hugo static site
+---
+
+import { Steps, Step } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { CodeBlock } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+Add Datamate's privacy-first analytics to your Hugo static site by adding the tracking script to your site's templates. The best way to do this is by creating a partial template for the script and including it in your site's footer.
+
+## How to Add Datamate to Hugo
+
+<Steps>
+  <Step title="Get Your Tracking Script">
+    Get your Datamate tracking script from your [Datamate dashboard](https://app.datamate.cc). It will look like this:
+
+    <CodeBlock
+      language="html"
+      code={`<script
+  src="https://cdn.datamate.cc/datamate.js"
+  data-client-id="YOUR_CLIENT_ID"
+  async
+></script>`}
+    />
+
+    Replace `YOUR_CLIENT_ID` with your actual Client ID from your Datamate dashboard.
+  </Step>
+
+  <Step title="Create a Partial Template">
+    In your Hugo project, navigate to the `layouts/partials/` directory. If it doesn't exist, create it.
+
+    Inside `layouts/partials/`, create a new file named `datamate-analytics.html`.
+
+    Paste your Datamate tracking script into this new file:
+
+    <CodeBlock
+      language="html"
+      filename="layouts/partials/datamate-analytics.html"
+      code={`{{/* layouts/partials/datamate-analytics.html */}}
+{{ if not .Site.IsServer }}
+    <script
+        src="https://cdn.datamate.cc/datamate.js"
+        data-client-id="YOUR_CLIENT_ID"
+        async
+    ></script>
+{{ end }}`}
+    />
+
+    **Explanation:**
+
+    - `{{ if not .Site.IsServer }}`: This Hugo condition ensures that the tracking script is only included when you build your site for production (`hugo`) and not during local development (`hugo server`). This prevents tracking your own local page views.
+    - Replace `YOUR_CLIENT_ID` with your actual Client ID.
+  </Step>
+
+  <Step title="Include the Partial in Your Footer">
+    Now, you need to include this partial in your site's main footer template. This is typically located in `layouts/_default/baseof.html` or a theme-specific footer partial (e.g., `layouts/partials/footer.html` or `themes/your-theme/layouts/partials/footer.html`).
+
+    Open your main base template or footer partial file. Just before the closing `</body>` tag, add the following line to include your Datamate Analytics partial:
+
+    <CodeBlock
+      language="html"
+      filename="layouts/_default/baseof.html"
+      code={`<!DOCTYPE html>
+<html lang="{{ .Site.LanguageCode }}">
+<head>
+    <meta charset="utf-8">
+    <title>{{ .Site.Title }}</title>
+</head>
+<body>
+    {{ block "main" . }}{{ end }}
+
+    {{/* Other footer content */}}
+
+    {{ partial "datamate-analytics.html" . }}
+</body>
+</html>`}
+    />
+
+    If you named your partial differently, make sure to use that name (e.g., `{{ partial "my-analytics-script.html" . }}`).
+  </Step>
+</Steps>
+
+## Configure `config.toml` (Recommended)
+
+To make your Client ID configurable, you can use Hugo's site parameters.
+
+<Steps>
+  <Step title="Update datamate-analytics.html">
+    Modify `layouts/partials/datamate-analytics.html` to use a site parameter:
+
+    <CodeBlock
+      language="html"
+      filename="layouts/partials/datamate-analytics.html"
+      code={`{{/* layouts/partials/datamate-analytics.html */}}
+{{ if and (not .Site.IsServer) .Site.Params.datamateClientID }}
+    <script
+        src="https://cdn.datamate.cc/datamate.js"
+        data-client-id="{{ .Site.Params.datamateClientID }}"
+        async
+    ></script>
+{{ end }}`}
+    />
+  </Step>
+
+  <Step title="Add Parameters to config.toml">
+    Open your Hugo configuration file (e.g., `config.toml`) and add:
+
+    <CodeBlock
+      language="toml"
+      filename="config.toml"
+      code={`[params]
+  datamateClientID = "YOUR_CLIENT_ID"`}
+    />
+
+    This approach keeps your Client ID out of the templates and makes it easier to manage for different environments if needed.
+  </Step>
+</Steps>
+
+## Configuration Options
+
+Enable additional tracking features by modifying the partial:
+
+<CodeBlock
+  language="html"
+  filename="layouts/partials/datamate-analytics.html"
+  code={`{{/* layouts/partials/datamate-analytics.html */}}
+{{ if and (not .Site.IsServer) .Site.Params.datamateClientID }}
+    <script
+        src="https://cdn.datamate.cc/datamate.js"
+        data-client-id="{{ .Site.Params.datamateClientID }}"
+        data-track-attributes
+        data-track-outgoing-links
+        data-track-interactions
+        data-track-web-vitals
+        data-track-errors
+        async
+    ></script>
+{{ end }}`}
+/>
+
+## Custom Event Tracking
+
+Track custom events in your Hugo content using data attributes or inline JavaScript.
+
+### Using Data Attributes
+
+Enable automatic tracking with data attributes:
+
+<CodeBlock
+  language="html"
+  code={`<!-- In your Hugo content files -->
+<button data-track="cta_click" data-button-type="primary">
+    Get Started
+</button>
+
+<a href="/pricing" data-track="pricing_link_click" data-link-location="header">
+    View Pricing
+</a>`}
+/>
+
+### Inline JavaScript
+
+Add custom tracking to specific pages or posts:
+
+<CodeBlock
+  language="html"
+  code={`<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var button = document.getElementById('special-button');
+    if (button && window.datamate) {
+        button.addEventListener('click', function() {
+            window.datamate.track('button_click', {
+                button_id: 'special-button',
+                page_path: window.location.pathname
+            });
+        });
+    }
+});
+</script>`}
+/>
+
+### In Hugo Posts
+
+Add tracking to specific blog posts using front matter and shortcodes:
+
+<CodeBlock
+  language="markdown"
+  filename="content/posts/my-post.md"
+  code={`---
+title: "My Post"
+track_events: true
+---
+
+# My Post
+
+Content here...
+
+{{< datamate-track event="blog_post_view" >}}`}
+/>
+
+Create a shortcode for tracking:
+
+<CodeBlock
+  language="html"
+  filename="layouts/shortcodes/datamate-track.html"
+  code={`{{/* layouts/shortcodes/datamate-track.html */}}
+{{ if and (not .Site.IsServer) .Site.Params.datamateClientID }}
+<script>
+if (window.datamate) {
+    window.datamate.track('{{ .Get "event" }}', {
+        {{- range $key, $value := .Params }}
+        {{- if ne $key "event" }}
+        '{{ $key }}': '{{ $value }}',
+        {{- end }}
+        {{- end }}
+        page_path: window.location.pathname,
+        page_title: document.title
+    });
+}
+</script>
+{{ end }}`}
+/>
+
+## Related Integrations
+
+<Cards>
+  <Card title="Jekyll" href="/docs/Integrations/jekyll">
+    Jekyll integration with include files and GitHub Pages.
+  </Card>
+  <Card title="WordPress" href="/docs/Integrations/wordpress">
+    Plugin or manual setup for WordPress sites.
+  </Card>
+  <Card title="React" href="/docs/Integrations/react">
+    TypeScript support with React hooks and components.
+  </Card>
+</Cards>
+
+Need help with your Hugo integration? Contact us at [support@datamate.cc](mailto:support@datamate.cc).

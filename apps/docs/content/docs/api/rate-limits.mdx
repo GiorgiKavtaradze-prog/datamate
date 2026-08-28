@@ -1,0 +1,75 @@
+---
+title: Rate Limits
+description: Current Query API limits and retry behavior
+---
+
+import { Callout, CodeBlock } from "@/components/docs";
+
+Rate limits protect the service from bursts and are applied by endpoint and authenticated identity. They are not currently plan-based.
+
+## Query API limits
+
+| Endpoint | Authenticated limit | Anonymous limit | Window |
+|----------|---------------------|-----------------|--------|
+| `POST /v1/query/compile` | 300 requests | 60 requests | 1 minute |
+| `POST /v1/query` | 120 requests | 60 requests | 1 minute |
+
+An API key, signed-in user, or anonymous client receives a separate limit identity. Other API families can apply their own limits.
+
+## When a limit is reached
+
+A `429` response includes the retry window in both headers and JSON:
+
+<CodeBlock
+  language="http"
+  code={`HTTP/1.1 429 Too Many Requests
+Retry-After: 8
+X-RateLimit-Limit: 120
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 1735732810000
+X-Request-ID: req_abc123def456`}
+/>
+
+<CodeBlock
+  language="json"
+  code={`{
+  "success": false,
+  "error": "Rate limit exceeded",
+  "code": "RATE_LIMITED",
+  "requestId": "req_abc123def456",
+  "limit": 120,
+  "remaining": 0,
+  "reset": 1735732810000,
+  "retryAfter": 8
+}`}
+/>
+
+`Retry-After` and `retryAfter` are seconds. `X-RateLimit-Reset` and `reset` are Unix timestamps in milliseconds. Rate-limit headers are guaranteed on the `429` response; do not assume they are present on successful responses.
+
+## Retry safely
+
+<CodeBlock
+  language="typescript"
+  code={`async function fetchWithRateLimitRetry(
+  url: string,
+  options: RequestInit,
+  maxRetries = 3
+) {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const response = await fetch(url, options);
+    if (response.status !== 429 || attempt === maxRetries) return response;
+
+    const retryAfter = Number(response.headers.get("Retry-After") ?? 1);
+    const jitter = Math.floor(Math.random() * 250);
+    await new Promise((resolve) =>
+      setTimeout(resolve, Math.max(1, retryAfter) * 1000 + jitter)
+    );
+  }
+}`}
+/>
+
+Batch compatible analytics parameters into one `/v1/query` request and cache historical results when appropriate.
+
+<Callout type="info">
+  If a production integration needs a different traffic profile, [contact support](mailto:support@datamate.cc) with the endpoint, expected peak rate, and request IDs from any `429` responses.
+</Callout>

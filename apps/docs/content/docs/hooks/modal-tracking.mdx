@@ -1,0 +1,85 @@
+---
+title: Modal Tracking
+description: Track when modals and dialogs are opened and closed
+---
+
+import { CodeBlock } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+Track modal interactions to understand user engagement with dialogs, settings panels, and other overlay components.
+
+## Implementation
+
+<CodeBlock 
+  language="tsx"
+  code={`import { track } from "@datamate/sdk";
+import { useEffect, useRef } from "react";
+
+export function useModalTracking(modalName: string, isOpen: boolean) {
+  const hasTrackedOpen = useRef(false);
+
+  useEffect(() => {
+    if (isOpen && !hasTrackedOpen.current) {
+      hasTrackedOpen.current = true;
+      track("modal_opened", {
+        modal_name: modalName,
+      });
+    } else if (!isOpen && hasTrackedOpen.current) {
+      hasTrackedOpen.current = false;
+      track("modal_closed", {
+        modal_name: modalName,
+      });
+    }
+  }, [isOpen, modalName]);
+}`}
+/>
+
+## Usage
+
+<CodeBlock 
+  language="tsx"
+  code={`function SettingsDialog() {
+  const [isOpen, setIsOpen] = useState(false);
+  useModalTracking("settings", isOpen);
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      {/* Dialog content */}
+    </Dialog>
+  );
+}`}
+/>
+
+## What It Tracks
+
+- **Events**: 
+  - `modal_opened`: When a modal is opened
+  - `modal_closed`: When a modal is closed
+- **Properties**:
+  - `modal_name`: Identifier for the modal/dialog
+
+## Benefits
+
+- **Engagement Metrics**: Understand which modals users interact with most
+- **User Flow**: Track modal usage patterns in your application
+- **Feature Discovery**: Identify which features users are exploring
+
+<Callout type="info">
+This hook tracks both open and close events, giving you complete visibility into modal interactions.
+</Callout>
+
+## Related
+
+<Cards>
+  <Card title="Toast Tracking" href="/docs/hooks/toast-tracking">
+    Track toast notifications automatically
+  </Card>
+  <Card title="Form Tracking" href="/docs/hooks/form-tracking">
+    Track form submissions with validation state
+  </Card>
+  <Card title="Hooks Overview" href="/docs/hooks">
+    View all available tracking hooks
+  </Card>
+</Cards>
+

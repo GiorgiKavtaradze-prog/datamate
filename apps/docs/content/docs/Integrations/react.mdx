@@ -1,0 +1,457 @@
+---
+title: React
+description: Integrate privacy-first analytics in your React application
+---
+
+import { Card, Cards } from "@/components/docs";
+  
+Add Datamate's privacy-first analytics to your React application with TypeScript support and modern best practices.
+
+## Installation
+
+Install the Datamate SDK:
+
+```bash
+npm install @datamate/sdk
+```
+
+or with yarn:
+
+```bash
+yarn add @datamate/sdk
+```
+
+## Basic Setup
+
+### 1. Add the Script Component
+
+Add the `<Datamate />` component to inject the tracking script:
+
+```tsx
+// App.tsx
+import { Datamate } from '@datamate/sdk/react';
+
+function App() {
+  return (
+    <>
+      <Datamate 
+        clientId="YOUR_CLIENT_ID" 
+        trackAttributes
+      />
+      <YourAppContent />
+    </>
+  );
+}
+
+export default App;
+```
+
+### 2. Track Page Views
+
+For React Router integration:
+
+```tsx
+// App.tsx
+import { useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
+import { track } from '@datamate/sdk';
+
+function App() {
+  const location = useLocation();
+
+  useEffect(() => {
+    track('screen_view', {
+      screen_name: location.pathname,
+      screen_class: 'React'
+    });
+  }, [location]);
+
+  return <YourAppContent />;
+}
+```
+
+## Event Tracking
+
+### Basic Event Tracking
+
+Track events using the `track` function:
+
+```tsx
+import { track } from '@datamate/sdk';
+
+function MyComponent() {
+  const handleButtonClick = () => {
+    track('button_click', {
+      button_text: 'Get Started',
+      location: 'header'
+    });
+  };
+
+  return (
+    <button onClick={handleButtonClick}>
+      Get Started
+    </button>
+  );
+}
+```
+
+### Custom Hook for Events
+
+Create a custom hook for cleaner tracking:
+
+```tsx
+import { useCallback } from 'react';
+import { track } from '@datamate/sdk';
+
+function useTracking() {
+  const trackButtonClick = useCallback((buttonText: string, location: string) => {
+    track('button_click', {
+      button_text: buttonText,
+      location
+    });
+  }, []);
+
+  const trackPageView = useCallback((pageName: string) => {
+    track('screen_view', {
+      screen_name: pageName,
+      screen_class: 'React'
+    });
+  }, []);
+
+  return { trackButtonClick, trackPageView };
+}
+
+// Usage in component
+function MyComponent() {
+  const { trackButtonClick } = useTracking();
+
+  return (
+    <button onClick={() => trackButtonClick('Get Started', 'header')}>
+      Get Started
+    </button>
+  );
+}
+```
+
+### Product Tracking Example
+
+```tsx
+import { useEffect } from 'react';
+import { track } from '@datamate/sdk';
+
+function ProductCard({ product }) {
+  useEffect(() => {
+    track('product_view', {
+      product_id: product.id,
+      product_name: product.name,
+      product_category: product.category,
+      product_price: product.price
+    });
+  }, [product]);
+
+  const handleAddToCart = () => {
+    track('add_to_cart', {
+      product_id: product.id,
+      quantity: 1,
+      value: product.price
+    });
+  };
+
+  return (
+    <div>
+      <h3>{product.name}</h3>
+      <button onClick={handleAddToCart}>Add to Cart</button>
+    </div>
+  );
+}
+```
+
+## Configuration Options
+
+### Advanced Configuration
+
+```tsx
+import { Datamate } from '@datamate/sdk/react';
+
+function App() {
+  return (
+    <>
+      <Datamate
+        clientId={process.env.REACT_APP_DATAMATE_CLIENT_ID!}
+        trackHashChanges
+        trackAttributes
+        trackOutgoingLinks
+		trackWebVitals
+        enableBatching
+        batchSize={10}
+        batchTimeout={2000}
+        debug={process.env.NODE_ENV === 'development'}
+      />
+      <YourAppContent />
+    </>
+  );
+}
+```
+
+## Component-Level Tracking
+
+### Automatic Click Tracking
+
+Use data attributes for automatic tracking:
+
+```tsx
+function CallToAction() {
+  return (
+    <button
+      data-track="cta_click"
+      data-cta-type="primary"
+      data-location="hero"
+      className="bg-blue-500 text-white px-6 py-3 rounded"
+    >
+      Get Started Free
+    </button>
+  );
+}
+```
+
+### Form Tracking
+
+Track form interactions and submissions:
+
+```tsx
+import { track } from '@datamate/sdk';
+
+function ContactForm() {
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    track('form_submit', {
+      form_name: 'contact',
+      form_location: 'footer'
+    });
+  };
+
+  const handleFieldFocus = (fieldName: string) => {
+    track('form_field_focus', {
+      field_name: fieldName,
+      form_name: 'contact'
+    });
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      <input
+        type="email"
+        onFocus={() => handleFieldFocus('email')}
+        placeholder="Your email"
+      />
+      <button type="submit">Submit</button>
+    </form>
+  );
+}
+```
+
+## E-commerce Tracking
+
+### Purchase Events
+
+```tsx
+import { useEffect } from 'react';
+import { track } from '@datamate/sdk';
+
+function CheckoutSuccess({ order }) {
+  useEffect(() => {
+    track('purchase', {
+      transaction_id: order.id,
+      value: order.total,
+      currency: 'USD',
+      items: order.items.map(item => ({
+        item_id: item.id,
+        item_name: item.name,
+        item_category: item.category,
+        quantity: item.quantity,
+        price: item.price
+      }))
+    });
+  }, [order]);
+
+  return <div>Thank you for your purchase!</div>;
+}
+```
+
+### Cart Events
+
+```tsx
+import { track } from '@datamate/sdk';
+
+function AddToCartButton({ product }) {
+  const handleAddToCart = () => {
+    track('add_to_cart', {
+      currency: 'USD',
+      value: product.price,
+      items: [{
+        item_id: product.id,
+        item_name: product.name,
+        item_category: product.category,
+        quantity: 1,
+        price: product.price
+      }]
+    });
+  };
+
+  return (
+    <button onClick={handleAddToCart}>
+      Add to Cart
+    </button>
+  );
+}
+```
+
+## Error Tracking
+
+Use `trackError` for manual error tracking. For automatic JavaScript error capture, enable `trackErrors` on the `<Datamate />` component.
+
+### Error Boundaries
+
+```tsx
+import { trackError } from '@datamate/sdk/react';
+
+function ErrorBoundary({ children }) {
+  const handleError = (error: Error, errorInfo: React.ErrorInfo) => {
+    trackError(error.message, {
+      error_type: 'react_error_boundary',
+      stack: error.stack,
+      component_stack: errorInfo.componentStack
+    });
+  };
+
+  return (
+    <ErrorBoundary
+      onError={handleError}
+      fallback={<div>Something went wrong</div>}
+    >
+      {children}
+    </ErrorBoundary>
+  );
+}
+```
+
+## Performance Monitoring
+
+### Custom Performance Metrics
+
+```tsx
+import { useEffect } from 'react';
+import { track } from '@datamate/sdk';
+
+function DataDashboard() {
+  useEffect(() => {
+    const startTime = performance.now();
+    
+    // Simulate data loading
+    fetchDashboardData().then(() => {
+      const loadTime = performance.now() - startTime;
+      
+      track('dashboard_load_time', {
+        load_time: Math.round(loadTime),
+        data_size: 'large'
+      });
+    });
+  }, []);
+
+  return <div>Dashboard content</div>;
+}
+```
+
+## TypeScript Support
+
+### Type-Safe Event Tracking
+
+```tsx
+import { track } from '@datamate/sdk';
+
+function TypedComponent() {
+  const handleClick = () => {
+    // TypeScript will ensure correct event properties
+    track('button_click', {
+      button_text: 'Subscribe',
+      location: 'header'
+    });
+  };
+
+  return <button onClick={handleClick}>Subscribe</button>;
+}
+```
+
+## Best Practices
+
+### 1. Environment-Based Configuration
+
+```tsx
+<Datamate
+  clientId={process.env.REACT_APP_DATAMATE_CLIENT_ID!}
+  debug={process.env.NODE_ENV === 'development'}
+  disabled={process.env.NODE_ENV === 'test'}
+/>
+```
+
+### 2. Conditional Loading
+
+```tsx
+import { Datamate } from '@datamate/sdk/react';
+
+function App() {
+  const shouldTrack = process.env.NODE_ENV === 'production';
+  
+  return (
+    <>
+      {shouldTrack && (
+        <Datamate clientId={process.env.REACT_APP_DATAMATE_CLIENT_ID!} />
+      )}
+      <YourAppContent />
+    </>
+  );
+}
+```
+
+### 3. Custom Hook for Analytics
+
+```tsx
+import { useCallback } from 'react';
+import { track, trackError } from '@datamate/sdk/react';
+
+export function useAnalytics() {
+  const trackButtonClick = useCallback((buttonText: string, location: string) => {
+    track('button_click', { button_text: buttonText, location });
+  }, []);
+  
+  const trackPageView = useCallback((pageName: string, category?: string) => {
+    track('screen_view', { screen_name: pageName, screen_class: category });
+  }, []);
+  
+  const handleError = useCallback((error: Error, context?: string) => {
+    trackError(error.message, { 
+      error_type: error.name, 
+      stack: error.stack,
+      context 
+    });
+  }, []);
+
+  return { trackButtonClick, trackPageView, trackError: handleError };
+}
+```
+
+## Related Integrations
+
+<Cards>
+  <Card title="Next.js" href="/docs/Integrations/nextjs">
+    App Router and Pages Router support with SSR compatibility.
+  </Card>
+  <Card title="Angular" href="/docs/Integrations/angular">
+    Angular integration with service-based tracking.
+  </Card>
+  <Card title="Svelte" href="/docs/Integrations/svelte">
+    Lightweight Svelte integration with reactive tracking.
+  </Card>
+</Cards>
+
+Need help with React integration? Contact us at [support@datamate.cc](mailto:support@datamate.cc).

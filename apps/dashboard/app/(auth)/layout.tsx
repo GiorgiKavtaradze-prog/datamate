@@ -1,0 +1,81 @@
+import Iridescence from "@/components/bits/Iridiscence";
+import { Logo } from "@/components/layout/logo";
+import Link from "next/link";
+import { Suspense } from "react";
+import { CaretLeftIcon } from "@datamate/ui/icons";
+import { Button, Spinner, Text } from "@datamate/ui";
+
+export default function AuthLayout({
+	children,
+}: {
+	children: React.ReactNode;
+}) {
+	return (
+		<div className="flex h-dvh items-center justify-center bg-muted/50 p-4 md:p-6">
+			<div className="flex h-full max-h-225 w-full max-w-300 overflow-hidden rounded-2xl border shadow-sm">
+				<div className="relative hidden flex-col items-start justify-between overflow-hidden rounded-l-2xl p-12 md:flex md:w-1/2">
+					<div className="absolute inset-0">
+						<Iridescence
+							amplitude={0.1}
+							color={[0.1, 0.1, 0.1]}
+							mouseReact={false}
+							speed={0.5}
+						/>
+					</div>
+					<Link className="relative z-10" href="/">
+						<Button
+							className="group px-0! text-white/50 hover:bg-transparent hover:text-white/80"
+							variant="ghost"
+						>
+							<CaretLeftIcon className="size-4 transition-transform duration-200 group-hover:-translate-x-1" />
+							Back
+						</Button>
+					</Link>
+					<div className="relative z-10">
+						<Text
+							as="h1"
+							className="mb-2 w-full max-w-sm text-balance text-4xl text-white/60 leading-11.5"
+							variant="display"
+						>
+							Build <span className="text-white">better products</span> with
+							Datamate
+						</Text>
+						<Text className="max-w-sm text-pretty text-white/90">
+							Connect your data sources, build insights, and share them with
+							your team.
+						</Text>
+					</div>
+				</div>
+				<div className="flex w-full flex-col overflow-auto bg-background md:w-1/2">
+					<div className="flex justify-center p-6 pt-8 md:p-8 md:pt-20">
+						<Logo />
+					</div>
+					<div className="flex flex-1 items-center justify-center md:p-8 md:pt-0">
+						<div className="w-full max-w-md">
+							<Suspense
+								fallback={
+									<div className="flex h-40 items-center justify-center">
+										<Spinner size="lg" />
+									</div>
+								}
+							>
+								{children}
+							</Suspense>
+						</div>
+					</div>
+					<div className="flex justify-center p-6 pb-8 text-center">
+						<Text tone="muted">
+							Powered by{" "}
+							<Link
+								className="font-medium text-foreground hover:underline"
+								href="/"
+							>
+								Datamate
+							</Link>
+						</Text>
+					</div>
+				</div>
+			</div>
+		</div>
+	);
+}

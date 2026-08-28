@@ -1,0 +1,129 @@
+---
+title: Feedback Tracking
+description: Track user feedback with server actions and client hooks
+---
+
+import { CodeBlock } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+Track user feedback (e.g., thumbs up/down on documentation pages) using both server actions and client-side hooks.
+
+## Server Action (Next.js)
+
+<CodeBlock 
+  language="tsx"
+  code={`"use server";
+
+import { Datamate } from "@datamate/sdk/node";
+
+const client = new Datamate({
+  apiKey: process.env.DATAMATE_API_KEY!,
+  websiteId: process.env.DATAMATE_WEBSITE_ID,
+});
+
+export async function onRateDocs(
+  url: string,
+  feedback: { opinion: "good" | "bad"; message: string }
+) {
+  try {
+    await client.track({
+      name: "docs_feedback",
+      properties: {
+        url,
+        opinion: feedback.opinion,
+        has_message: feedback.message.trim().length > 0,
+        message_length: feedback.message.trim().length,
+      },
+    });
+
+    await client.flush();
+    return { success: true };
+  } catch (error) {
+    console.error("Failed to track feedback:", error);
+    return { success: false, error: "Failed to submit feedback" };
+  }
+}`}
+/>
+
+## Client Hook Wrapper
+
+<CodeBlock 
+  language="tsx"
+  code={`import { track } from "@datamate/sdk";
+import { useCallback } from "react";
+
+export function useFeedbackTracking() {
+  const trackFeedback = useCallback(
+    (url: string, opinion: "good" | "bad", message?: string) => {
+      track("feedback_submitted", {
+        url,
+        opinion,
+        has_message: !!message,
+        message_length: message?.length ?? 0,
+      });
+    },
+    []
+  );
+
+  return { trackFeedback };
+}`}
+/>
+
+## Usage
+
+<CodeBlock 
+  language="tsx"
+  code={`function FeedbackComponent() {
+  const { trackFeedback } = useFeedbackTracking();
+  const pathname = usePathname();
+
+  const handleFeedback = (opinion: "good" | "bad", message?: string) => {
+    trackFeedback(pathname, opinion, message);
+    // Submit to server action
+    onRateDocs(pathname, { opinion, message: message ?? "" });
+  };
+
+  return (
+    <div>
+      <button onClick={() => handleFeedback("good")}>👍 Good</button>
+      <button onClick={() => handleFeedback("bad")}>👎 Bad</button>
+    </div>
+  );
+}`}
+/>
+
+## What It Tracks
+
+- **Events**: 
+  - `docs_feedback`: Server-side tracking with submitted feedback metadata
+  - `feedback_submitted`: Client-side tracking with metadata
+- **Properties**:
+  - `url`: Page URL where feedback was submitted
+  - `opinion`: "good" or "bad"
+  - `has_message`: Whether user provided a message
+  - `message_length`: Length of feedback message
+
+## Benefits
+
+- **Content Quality**: Understand which pages need improvement
+- **User Satisfaction**: Track overall feedback sentiment
+- **Content Strategy**: Identify high-performing and low-performing content
+
+<Callout type="info">
+Use server actions for detailed feedback tracking and client hooks for immediate user interaction tracking.
+</Callout>
+
+## Related
+
+<Cards>
+  <Card title="Toast Tracking" href="/docs/hooks/toast-tracking">
+    Track toast notifications automatically
+  </Card>
+  <Card title="Form Tracking" href="/docs/hooks/form-tracking">
+    Track form submissions with validation state
+  </Card>
+  <Card title="Hooks Overview" href="/docs/hooks">
+    View all available tracking hooks
+  </Card>
+</Cards>

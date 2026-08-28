@@ -1,0 +1,362 @@
+import { formatLocaleNumber } from "@/lib/format-locale-number";
+import { formatDuration } from "@/lib/utils";
+import {
+	BugIcon,
+	ClockIcon,
+	CursorClickIcon,
+	EyeIcon,
+	GaugeIcon,
+	LightningIcon,
+	PulseIcon,
+	TrendUpIcon,
+	UsersIcon,
+} from "@datamate/ui/icons";
+
+const createColorSet = (
+	primary: string,
+	secondary: string,
+	light: string,
+	gradient: string
+) => ({
+	primary,
+	secondary,
+	light,
+	gradient,
+});
+
+export const METRIC_COLORS = {
+	pageviews: createColorSet(
+		"#2E27F5",
+		"#3D39E3",
+		"#dbeafe",
+		"from-blue-500/20 to-blue-600/5"
+	),
+	visitors: createColorSet(
+		"#40BCF7",
+		"#25B0F5",
+		"#ADE6FF",
+		"from-emerald-500/20 to-emerald-600/5"
+	),
+	sessions: createColorSet(
+		"#8b5cf6",
+		"#7c3aed",
+		"#ede9fe",
+		"from-violet-500/20 to-violet-600/5"
+	),
+	bounce_rate: createColorSet(
+		"#f59e0b",
+		"#d97706",
+		"#fef3c7",
+		"from-amber-500/20 to-amber-600/5"
+	),
+	session_duration: createColorSet(
+		"#ef4444",
+		"#dc2626",
+		"#fee2e2",
+		"from-red-500/20 to-red-600/5"
+	),
+	avg_fcp: createColorSet(
+		"#06b6d4",
+		"#0891b2",
+		"#cffafe",
+		"from-cyan-500/20 to-cyan-600/5"
+	),
+	p50_fcp: createColorSet(
+		"#0ea5e9",
+		"#0284c7",
+		"#e0f2fe",
+		"from-sky-500/20 to-sky-600/5"
+	),
+	avg_lcp: createColorSet(
+		"#10b981",
+		"#059669",
+		"#d1fae5",
+		"from-emerald-500/20 to-emerald-600/5"
+	),
+	p50_lcp: createColorSet(
+		"#22c55e",
+		"#16a34a",
+		"#dcfce7",
+		"from-green-500/20 to-green-600/5"
+	),
+	avg_cls: createColorSet(
+		"#f59e0b",
+		"#d97706",
+		"#fef3c7",
+		"from-amber-500/20 to-amber-600/5"
+	),
+	p50_cls: createColorSet(
+		"#eab308",
+		"#ca8a04",
+		"#fefce8",
+		"from-yellow-500/20 to-yellow-600/5"
+	),
+	avg_fid: createColorSet(
+		"#8b5cf6",
+		"#7c3aed",
+		"#ede9fe",
+		"from-violet-500/20 to-violet-600/5"
+	),
+	p50_fid: createColorSet(
+		"#a855f7",
+		"#9333ea",
+		"#f3e8ff",
+		"from-purple-500/20 to-purple-600/5"
+	),
+	avg_inp: createColorSet(
+		"#ec4899",
+		"#db2777",
+		"#fce7f3",
+		"from-pink-500/20 to-pink-600/5"
+	),
+	p50_inp: createColorSet(
+		"#f43f5e",
+		"#e11d48",
+		"#ffe4e6",
+		"from-rose-500/20 to-rose-600/5"
+	),
+	avg_load_time: createColorSet(
+		"#3b82f6",
+		"#1d4ed8",
+		"#dbeafe",
+		"from-blue-500/20 to-blue-600/5"
+	),
+	p50_load_time: createColorSet(
+		"#06b6d4",
+		"#0891b2",
+		"#cffafe",
+		"from-cyan-500/20 to-cyan-600/5"
+	),
+} as const;
+
+export interface ChartDataRow {
+	avg_cls?: number;
+	avg_fcp?: number;
+	avg_fid?: number;
+	avg_inp?: number;
+	avg_lcp?: number;
+	avg_load_time?: number;
+	avg_ttfb?: number;
+	bounce_rate?: number;
+	date: string;
+	measurements?: number;
+	median_session_duration?: number;
+	median_session_duration_formatted?: string;
+	p50_cls?: number;
+	p50_fcp?: number;
+	p50_fid?: number;
+	p50_inp?: number;
+	p50_lcp?: number;
+	p50_load_time?: number;
+	pageviews?: number;
+	sessions?: number;
+	unique_visitors?: number;
+	visitors?: number;
+	/** Stable category for Recharts X-axis; usually rawDate (YYYY-MM-DD or hourly key) */
+	xKey?: string;
+	[key: string]: unknown;
+}
+
+export interface MetricConfig {
+	category?: "analytics" | "performance" | "core_web_vitals";
+	color: string;
+	formatValue?: (value: number, row: ChartDataRow) => string;
+	gradient: string;
+	icon: React.ComponentType<{ className?: string }>;
+	key: string;
+	label: string;
+	yAxisId: string;
+}
+
+export const formatPerformanceTime = (value: number): string => {
+	if (!value || value === 0) {
+		return "N/A";
+	}
+	if (value < 1000) {
+		return `${Math.round(value)}ms`;
+	}
+	const seconds = Math.round(value / 100) / 10;
+	return seconds % 1 === 0
+		? `${seconds.toFixed(0)}s`
+		: `${seconds.toFixed(1)}s`;
+};
+
+export const formatCLS = (value: number): string => {
+	if (value === null || value === undefined || Number.isNaN(value)) {
+		return "N/A";
+	}
+	return value.toFixed(3);
+};
+
+const createMetric = (
+	key: string,
+	label: string,
+	colorKey: keyof typeof METRIC_COLORS,
+	icon: React.ComponentType<{ className?: string }>,
+	formatValue?: (value: number, row: ChartDataRow) => string,
+	category: "analytics" | "performance" | "core_web_vitals" = "analytics"
+): MetricConfig => ({
+	key,
+	label,
+	color: METRIC_COLORS[colorKey].primary,
+	gradient: colorKey,
+	yAxisId: "left",
+	icon,
+	formatValue,
+	category,
+});
+
+export const ANALYTICS_METRICS: MetricConfig[] = [
+	createMetric("pageviews", "Pageviews", "pageviews", EyeIcon, (value) =>
+		formatLocaleNumber(value)
+	),
+	createMetric("sessions", "Sessions", "sessions", TrendUpIcon, (value) =>
+		formatLocaleNumber(value)
+	),
+	createMetric("visitors", "Visitors", "visitors", UsersIcon, (value) =>
+		formatLocaleNumber(value)
+	),
+	createMetric(
+		"bounce_rate",
+		"Bounce Rate",
+		"bounce_rate",
+		CursorClickIcon,
+		(value) => `${value.toFixed(1)}%`
+	),
+	createMetric(
+		"median_session_duration",
+		"Session Duration",
+		"session_duration",
+		TrendUpIcon,
+		(value, row) =>
+			typeof row.median_session_duration_formatted === "string"
+				? row.median_session_duration_formatted
+				: formatDuration(value)
+	),
+];
+
+export const PERFORMANCE_METRICS: MetricConfig[] = [
+	createMetric(
+		"avg_load_time",
+		"Avg Load Time",
+		"avg_load_time",
+		ClockIcon,
+		formatPerformanceTime,
+		"performance"
+	),
+	createMetric(
+		"p50_load_time",
+		"P50 Load Time",
+		"p50_load_time",
+		ClockIcon,
+		formatPerformanceTime,
+		"performance"
+	),
+];
+
+export const CORE_WEB_VITALS_METRICS: MetricConfig[] = [
+	createMetric(
+		"avg_fcp",
+		"FCP (Avg)",
+		"avg_fcp",
+		LightningIcon,
+		formatPerformanceTime,
+		"core_web_vitals"
+	),
+	createMetric(
+		"p50_fcp",
+		"FCP (P50)",
+		"p50_fcp",
+		LightningIcon,
+		formatPerformanceTime,
+		"core_web_vitals"
+	),
+	createMetric(
+		"avg_lcp",
+		"LCP (Avg)",
+		"avg_lcp",
+		PulseIcon,
+		formatPerformanceTime,
+		"core_web_vitals"
+	),
+	createMetric(
+		"p50_lcp",
+		"LCP (P50)",
+		"p50_lcp",
+		PulseIcon,
+		formatPerformanceTime,
+		"core_web_vitals"
+	),
+	createMetric(
+		"avg_cls",
+		"CLS (Avg)",
+		"avg_cls",
+		GaugeIcon,
+		formatCLS,
+		"core_web_vitals"
+	),
+	createMetric(
+		"p50_cls",
+		"CLS (P50)",
+		"p50_cls",
+		GaugeIcon,
+		formatCLS,
+		"core_web_vitals"
+	),
+	createMetric(
+		"avg_fid",
+		"FID (Legacy Avg)",
+		"avg_fid",
+		CursorClickIcon,
+		formatPerformanceTime,
+		"core_web_vitals"
+	),
+	createMetric(
+		"p50_fid",
+		"FID (Legacy P50)",
+		"p50_fid",
+		CursorClickIcon,
+		formatPerformanceTime,
+		"core_web_vitals"
+	),
+	createMetric(
+		"avg_inp",
+		"INP (Avg)",
+		"avg_inp",
+		PulseIcon,
+		formatPerformanceTime,
+		"core_web_vitals"
+	),
+	createMetric(
+		"p50_inp",
+		"INP (P50)",
+		"p50_inp",
+		PulseIcon,
+		formatPerformanceTime,
+		"core_web_vitals"
+	),
+];
+
+export const ERROR_METRICS: MetricConfig[] = [
+	createMetric(
+		"total_errors",
+		"Total Errors",
+		"bounce_rate",
+		BugIcon,
+		(value) => formatLocaleNumber(value)
+	),
+	createMetric(
+		"affected_users",
+		"Affected Users",
+		"session_duration",
+		UsersIcon,
+		(value) => formatLocaleNumber(value)
+	),
+];
+
+export const METRICS = [
+	...ANALYTICS_METRICS,
+	...PERFORMANCE_METRICS,
+	...CORE_WEB_VITALS_METRICS,
+	...ERROR_METRICS,
+];

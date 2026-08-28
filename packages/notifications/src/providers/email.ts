@@ -1,0 +1,157 @@
+import type {
+	EmailPayload,
+	NotificationPayload,
+	NotificationResult,
+} from "../types";
+import { BaseProvider } from "./base";
+
+const FIRST_CHARACTER_PATTERN = /^./;
+const UPTIME_MESSAGE_METADATA_KEYS = new Set([
+	"checkedAt",
+	"error",
+	"httpCode",
+	"kind",
+	"probeRegion",
+	"siteLabel",
+	"sslExpiryMs",
+	"sslValid",
+	"totalMs",
+	"ttfbMs",
+	"url",
+]);
+const UPTIME_TRANSITION_MESSAGE_METADATA_KEYS = new Set([
+	"checkedAt",
+	"dashboardUrl",
+	"httpCode",
+	"kind",
+	"monitorName",
+]);
+
+export interface EmailProviderConfig {
+	defaultTo?: string | string[];
+	from?: string;
+	retries?: number;
+	retryDelay?: number;
+	sendEmailAction: (payload: EmailPayload) => Promise<unknown>;
+	timeout?: number;
+}
+
+function escapeHtml(str: string): string {
+	return str
+		.replaceAll("&", "&amp;")
+		.replaceAll("<", "&lt;")
+		.replaceAll(">", "&gt;")
+		.replaceAll('"', "&quot;")
+		.replaceAll("'", "&#39;");
+}
+
+function isUserFacingMetadata(key: string, template: unknown): boolean {
+	if (template === "uptime" && UPTIME_MESSAGE_METADATA_KEYS.has(key)) {
+		return false;
+	}
+	if (
+		template === "uptime-transition" &&
+		UPTIME_TRANSITION_MESSAGE_METADATA_KEYS.has(key)
+	) {
+		return false;
+	}
+	return !(
+		key === "to" ||
+		key === "template" ||
+		key === "zScore" ||
+		key.endsWith("Id")
+	);
+}
+
+function formatMetadataLabel(key: string): string {
+	return key
+		.replaceAll(/([a-z0-9])([A-Z])/g, "$1 $2")
+		.replaceAll(/[_-]+/g, " ")
+		.replace(FIRST_CHARACTER_PATTERN, (character) => character.toUpperCase());
+}
+
+export class EmailProvider extends BaseProvider {
+	private readonly sendEmailAction: (payload: EmailPayload) => Promise<unknown>;
+	private readonly defaultTo?: string | string[];
+	private readonly from?: string;
+
+	constructor(config: EmailProviderConfig) {
+		super({
+			timeout: config.timeout,
+			retries: config.retries,
+			retryDelay: config.retryDelay,
+		});
+		this.sendEmailAction = config.sendEmailAction;
+		this.defaultTo = config.defaultTo;
+		this.from = config.from;
+	}
+
+	async send(payload: NotificationPayload): Promise<NotificationResult> {
+		if (!this.sendEmailAction) {
+			return {
+				success: false,
+				channel: "email",
+				error: "Email send function not configured",
+			};
+		}
+
+		try {
+			const emailPayload = this.buildPayload(payload);
+			await this.withRetry(async () => this.sendEmailAction(emailPayload));
+
+			return { success: true, channel: "email" };
+		} catch (error) {
+			return {
+				success: false,
+				channel: "email",
+				error: error instanceof Error ? error.message : String(error),
+			};
+		}
+	}
+
+	private buildPayload(payload: NotificationPayload): EmailPayload {
+		const to =
+			(payload.metadata?.to as string | string[] | undefined) ?? this.defaultTo;
+
+		if (!to) {
+			throw new Error(
+				"Email recipient required: set 'defaultTo' in config or 'metadata.to' in payload"
+			);
+		}
+
+		const metadataEntries = payload.metadata
+			? Object.entries(payload.metadata).filter(([key]) =>
+					isUserFacingMetadata(key, payload.metadata?.template)
+				)
+			: [];
+
+		const sanitize = (s: string) => s.replaceAll(/[\r\n]/g, " ");
+
+		const metadataText =
+			metadataEntries.length > 0
+				? `\n\n${metadataEntries.map(([key, value]) => `${sanitize(formatMetadataLabel(key))}: ${sanitize(String(value))}`).join("\n")}`
+				: "";
+
+		const text = `${payload.message}${metadataText}`;
+
+		const metadataHtml =
+			metadataEntries.length > 0
+				? `<table style="margin-top:16px;border-collapse:collapse">${metadataEntries
+						.map(
+							([key, value]) =>
+								`<tr><td style="padding:4px 12px 4px 0;font-weight:600">${escapeHtml(formatMetadataLabel(key))}</td><td style="padding:4px 0">${escapeHtml(String(value))}</td></tr>`
+						)
+						.join("")}</table>`
+				: "";
+
+		const html = `<h1>${escapeHtml(payload.title)}</h1><p>${escapeHtml(payload.message).replaceAll("\n", "<br>")}</p>${metadataHtml}`;
+
+		return {
+			to,
+			subject: payload.title.replaceAll(/[\r\n]/g, " "),
+			text,
+			html,
+			...(this.from && { from: this.from }),
+		};
+	}
+}

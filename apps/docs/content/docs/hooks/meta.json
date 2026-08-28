@@ -1,0 +1,12 @@
+{
+  "title": "Tracking Recipes",
+  "description": "Copyable recipes for tracking custom events",
+  "icon": "Code",
+  "pages": [
+    "toast-tracking",
+    "form-tracking",
+    "modal-tracking",
+    "feature-usage",
+    "feedback-tracking"
+  ]
+}

@@ -1,0 +1,322 @@
+import { CheckIcon, XMarkIcon as XIcon } from "@datamate/ui/icons";
+import Link from "next/link";
+import { SciFiButton } from "@/components/landing/scifi-btn";
+import { GatedFeaturePricingRows } from "./gated-feature-rows";
+import { trackPricingPlanClick } from "./track-pricing";
+import type { NormalizedPlan } from "./types";
+
+interface Props {
+	plans: NormalizedPlan[];
+}
+
+function planComparisonTdClass(planId: string): string {
+	return `px-4 py-3 text-center text-foreground sm:px-5 lg:px-6 ${planId === "pro" ? "border-border border-x bg-primary/10" : ""}`;
+}
+
+function FeatureCheck() {
+	return (
+		<span className="inline-flex items-center justify-center">
+			<CheckIcon className="size-4 text-primary" weight="bold" />
+		</span>
+	);
+}
+
+function FeatureX() {
+	return (
+		<span className="inline-flex items-center justify-center">
+			<XIcon className="size-4 text-muted-foreground" weight="bold" />
+		</span>
+	);
+}
+
+export function PlansComparisonTable({ plans }: Props) {
+	return (
+		<section className="mb-10">
+			<div className="group relative overflow-x-auto border border-border bg-card/70 shadow-inner backdrop-blur-sm transition-all duration-300 hover:border-border/80 hover:shadow-primary/10">
+				<table className="w-full">
+					<caption className="sr-only">Datamate plan comparison</caption>
+					<thead className="border-border border-b bg-card/20">
+						<tr>
+							<th
+								className="px-4 py-3 text-left text-foreground text-sm sm:px-5 lg:px-6"
+								scope="col"
+							>
+								Feature
+							</th>
+							{plans.map((plan) => (
+								<th
+									className={`px-4 py-3 text-center text-foreground text-sm sm:px-5 lg:px-6 ${plan.id === "pro" ? "border-border border-x bg-primary/10" : ""}`}
+									key={plan.id}
+									scope="col"
+								>
+									<div className="flex flex-col items-center gap-1">
+										<span className="font-medium">{plan.name}</span>
+									</div>
+								</th>
+							))}
+						</tr>
+					</thead>
+					<tbody>
+						{/* Price row */}
+						<tr className="border-border border-t hover:bg-card/10">
+							<td className="px-4 py-3 text-muted-foreground text-sm sm:px-5 lg:px-6">
+								Price / month
+							</td>
+							{plans.map((p) => (
+								<td
+									className={planComparisonTdClass(p.id)}
+									key={`price-${p.id}`}
+								>
+									{p.id === "enterprise" ? (
+										<span className="font-medium text-muted-foreground">
+											Contact Us
+										</span>
+									) : p.priceMonthly === 0 ? (
+										"Free"
+									) : p.id === "hobby" ? (
+										<div className="flex flex-col items-center gap-0.5">
+											<span className="font-medium">$10/mo</span>
+											<span className="text-muted-foreground text-xs">
+												first month $2
+											</span>
+										</div>
+									) : (
+										`$${p.priceMonthly.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`
+									)}
+								</td>
+							))}
+						</tr>
+						{/* Events row */}
+						<tr className="border-border border-t hover:bg-card/10">
+							<td className="px-4 py-3 text-muted-foreground text-sm sm:px-5 lg:px-6">
+								Included events / month
+							</td>
+							{plans.map((p) => (
+								<td
+									className={planComparisonTdClass(p.id)}
+									key={`events-${p.id}`}
+								>
+									{p.id === "enterprise"
+										? "Custom"
+										: p.includedEventsMonthly.toLocaleString()}
+								</td>
+							))}
+						</tr>
+						{/* Investigation credits per month */}
+						<tr className="border-border border-t hover:bg-card/10">
+							<td className="px-4 py-3 text-muted-foreground text-sm sm:px-5 lg:px-6">
+								Investigation credits / month
+							</td>
+							{plans.map((p) => (
+								<td
+									className={planComparisonTdClass(p.id)}
+									key={`credits-month-${p.id}`}
+								>
+									{p.id === "enterprise" ? (
+										"Custom"
+									) : p.agentCreditsMonthly == null ? (
+										<FeatureX />
+									) : (
+										Number(p.agentCreditsMonthly).toLocaleString()
+									)}
+								</td>
+							))}
+						</tr>
+						{/* Daily investigation credit bonus */}
+						<tr className="border-border border-t hover:bg-card/10">
+							<td className="px-4 py-3 text-muted-foreground text-sm sm:px-5 lg:px-6">
+								Daily investigation credit bonus
+							</td>
+							{plans.map((p) => (
+								<td
+									className={planComparisonTdClass(p.id)}
+									key={`credits-day-${p.id}`}
+								>
+									{p.id === "enterprise" ? (
+										"Custom"
+									) : p.agentCreditsDaily == null ? (
+										<FeatureX />
+									) : (
+										Number(p.agentCreditsDaily).toLocaleString()
+									)}
+								</td>
+							))}
+						</tr>
+						{/* Tiered overage row */}
+						<tr className="border-border border-t hover:bg-card/10">
+							<td className="px-4 py-3 text-muted-foreground text-sm sm:px-5 lg:px-6">
+								Tiered overage
+							</td>
+							{plans.map((p) => (
+								<td
+									className={planComparisonTdClass(p.id)}
+									key={`over-${p.id}`}
+								>
+									{p.id === "enterprise" || p.eventTiers ? (
+										<FeatureCheck />
+									) : (
+										<FeatureX />
+									)}
+								</td>
+							))}
+						</tr>
+						<GatedFeaturePricingRows
+							plans={plans}
+							planTdClassName={planComparisonTdClass}
+						/>
+						{/* Enterprise section header */}
+						<tr className="border-border border-t bg-muted/20">
+							<td
+								className="px-4 py-2 font-medium text-muted-foreground text-xs uppercase tracking-wide sm:px-5 lg:px-6"
+								colSpan={1 + plans.length}
+							>
+								Enterprise
+							</td>
+						</tr>
+						{/* Support row */}
+						<tr className="border-border border-t hover:bg-card/10">
+							<td className="px-4 py-3 text-muted-foreground text-sm sm:px-5 lg:px-6">
+								Support
+							</td>
+							{plans.map((p) => {
+								const support =
+									p.id === "free"
+										? "Community"
+										: p.id === "hobby"
+											? "Email"
+											: p.id === "pro"
+												? "Priority Email"
+												: "Dedicated + Slack";
+								return (
+									<td
+										className={planComparisonTdClass(p.id)}
+										key={`support-${p.id}`}
+									>
+										{support}
+									</td>
+								);
+							})}
+						</tr>
+						{/* SSO row */}
+						<tr className="border-border border-t hover:bg-card/10">
+							<td className="px-4 py-3 text-muted-foreground text-sm sm:px-5 lg:px-6">
+								SSO (SAML/OIDC)
+							</td>
+							{plans.map((p) => (
+								<td className={planComparisonTdClass(p.id)} key={`sso-${p.id}`}>
+									{p.id === "enterprise" ? <FeatureCheck /> : <FeatureX />}
+								</td>
+							))}
+						</tr>
+						{/* Audit logs row */}
+						<tr className="border-border border-t hover:bg-card/10">
+							<td className="px-4 py-3 text-muted-foreground text-sm sm:px-5 lg:px-6">
+								Audit Logs
+							</td>
+							{plans.map((p) => (
+								<td
+									className={planComparisonTdClass(p.id)}
+									key={`audit-${p.id}`}
+								>
+									{p.id === "enterprise" ? <FeatureCheck /> : <FeatureX />}
+								</td>
+							))}
+						</tr>
+						{/* White glove row */}
+						<tr className="border-border border-t hover:bg-card/10">
+							<td className="px-4 py-3 text-muted-foreground text-sm sm:px-5 lg:px-6">
+								White Glove Onboarding
+							</td>
+							{plans.map((p) => (
+								<td
+									className={planComparisonTdClass(p.id)}
+									key={`onboard-${p.id}`}
+								>
+									{p.id === "enterprise" ? <FeatureCheck /> : <FeatureX />}
+								</td>
+							))}
+						</tr>
+						{/* CTA row */}
+						<tr className="border-border border-t">
+							<td className="px-4 py-3 sm:px-5 lg:px-6" />
+							{plans.map((p) => (
+								<td className={planComparisonTdClass(p.id)} key={`cta-${p.id}`}>
+									<SciFiButton asChild>
+										{p.id === "enterprise" ? (
+											<Link
+												data-plan={p.id}
+												href="/contact"
+												onClick={() =>
+													trackPricingPlanClick(
+														p.id,
+														"pricing_comparison_table"
+													)
+												}
+											>
+												CONTACT US
+											</Link>
+										) : (
+											<Link
+												data-plan={p.id}
+												href={`https://app.datamate.cc/register?plan=${p.id}`}
+												onClick={() =>
+													trackPricingPlanClick(
+														p.id,
+														"pricing_comparison_table"
+													)
+												}
+												rel="noopener noreferrer"
+												target="_blank"
+											>
+												GET STARTED
+											</Link>
+										)}
+									</SciFiButton>
+								</td>
+							))}
+						</tr>
+					</tbody>
+				</table>
+
+				{/* Decorative corners */}
+				<div className="pointer-events-none absolute inset-0">
+					<div className="absolute top-0 left-0 size-2">
+						<div className="absolute top-0 left-0 h-2 w-0.5 origin-top bg-foreground" />
+						<div className="absolute top-0 left-0.5 h-0.5 w-1.5 origin-left bg-foreground" />
+					</div>
+					<div className="absolute top-0 right-0 size-2 -scale-x-[1]">
+						<div className="absolute top-0 left-0 h-2 w-0.5 origin-top bg-foreground" />
+						<div className="absolute top-0 left-0.5 h-0.5 w-1.5 origin-left bg-foreground" />
+					</div>
+					<div className="absolute bottom-0 left-0 size-2 -scale-y-[1]">
+						<div className="absolute top-0 left-0 h-2 w-0.5 origin-top bg-foreground" />
+						<div className="absolute top-0 left-0.5 h-0.5 w-1.5 origin-left bg-foreground" />
+					</div>
+					<div className="absolute right-0 bottom-0 size-2 -scale-[1]">
+						<div className="absolute top-0 left-0 h-2 w-0.5 origin-top bg-foreground" />
+						<div className="absolute top-0 left-0.5 h-0.5 w-1.5 origin-left bg-foreground" />
+					</div>
+				</div>
+			</div>
+			<div className="mt-3 space-y-1 text-muted-foreground text-xs">
+				<p>
+					<span className="text-foreground">What counts as an event?</span> A
+					pageview, custom event, error, or Web Vital measurement. Feature flag
+					evaluations and uptime checks are free and don't count toward your
+					quota.
+				</p>
+				<p>
+					<span className="text-foreground">Investigation credits</span> pay for
+					the work Databunny performs. They are not a message count: simple
+					checks use fewer credits; deeper investigations, replies, and rechecks
+					use more.
+				</p>
+				<p>
+					<span className="text-foreground">Unlimited seats & sites.</span> Team
+					members, websites, and API access are unlimited on every plan. Overage
+					is tiered with lower rates as volume increases.
+				</p>
+			</div>
+		</section>
+	);
+}

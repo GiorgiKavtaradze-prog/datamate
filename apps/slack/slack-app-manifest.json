@@ -1,0 +1,93 @@
+{
+  "display_information": {
+    "name": "Datamate",
+    "description": "Investigate analytics changes and continue fixes in Slack."
+  },
+  "features": {
+    "app_home": {
+      "home_tab_enabled": true,
+      "messages_tab_enabled": true,
+      "messages_tab_read_only_enabled": false
+    },
+    "assistant_view": {
+      "assistant_description": "Run, review, and continue Datamate investigations without leaving Slack.",
+      "suggested_prompts": [
+        {
+          "title": "Open investigations",
+          "message": "Show me our open investigations and what needs attention first."
+        },
+        {
+          "title": "Run an investigation",
+          "message": "Run a new investigation now."
+        },
+        {
+          "title": "Weekly delivery",
+          "message": "Send new investigations to this channel every week."
+        }
+      ]
+    },
+    "bot_user": {
+      "display_name": "Datamate",
+      "always_online": true
+    },
+    "slash_commands": [
+      {
+        "command": "/datamate-bind",
+        "description": "Approve this channel for Datamate answers.",
+        "usage_hint": "Use when automatic channel approval is unavailable.",
+        "should_escape": true
+      },
+      {
+        "command": "/datamate-help",
+        "description": "Show how to use Datamate in Slack.",
+        "should_escape": false
+      },
+      {
+        "command": "/datamate-status",
+        "description": "Check whether Datamate is connected and ready here.",
+        "should_escape": false
+      }
+    ]
+  },
+  "oauth_config": {
+    "redirect_urls": [
+      "http://localhost:3001/v1/integrations/slack/callback",
+      "https://api.datamate.cc/v1/integrations/slack/callback"
+    ],
+    "scopes": {
+      "bot": [
+        "assistant:write",
+        "app_mentions:read",
+        "canvases:write",
+        "channels:history",
+        "channels:read",
+        "chat:write",
+        "commands",
+        "groups:history",
+        "groups:read",
+        "im:history",
+        "reactions:write"
+      ]
+    }
+  },
+  "settings": {
+    "event_subscriptions": {
+      "bot_events": [
+        "app_home_opened",
+        "app_mention",
+        "assistant_thread_context_changed",
+        "assistant_thread_started",
+        "message.channels",
+        "message.groups",
+        "message.im"
+      ]
+    },
+    "interactivity": {
+      "is_enabled": true
+    },
+    "org_deploy_enabled": false,
+    "socket_mode_enabled": true,
+    "token_rotation_enabled": false,
+    "is_hosted": false
+  }
+}

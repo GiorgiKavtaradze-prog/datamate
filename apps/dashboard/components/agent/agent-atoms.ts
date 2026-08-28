@@ -1,0 +1,46 @@
+import { atom } from "jotai";
+import { atomWithStorage } from "jotai/utils";
+
+export const agentInputAtom = atom("");
+
+export interface AgentMention {
+	domain?: string;
+	id: string;
+	label: string;
+}
+
+export const agentMentionsAtom = atom<AgentMention[]>([]);
+
+export type AgentThinking = "off" | "low" | "medium" | "high";
+export type AgentTier = "quick" | "balanced" | "deep";
+
+export const AGENT_THINKING_LEVELS: readonly AgentThinking[] = [
+	"off",
+	"low",
+	"medium",
+	"high",
+] as const;
+
+export const AGENT_TIERS: readonly AgentTier[] = [
+	"quick",
+	"balanced",
+	"deep",
+] as const;
+
+export const agentThinkingAtom = atomWithStorage<AgentThinking>(
+	"datamate-agent-thinking",
+	"off"
+);
+
+export const agentTierAtom = atomWithStorage<AgentTier>(
+	"datamate-agent-tier",
+	"balanced"
+);
+
+export const TIER_SUPPORTS_THINKING: Record<AgentTier, boolean> = {
+	quick: false,
+	balanced: true,
+	deep: false,
+};
+
+export const agentCreditShakeNonceAtom = atom(0);

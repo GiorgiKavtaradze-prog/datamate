@@ -1,0 +1,139 @@
+---
+title: API Keys
+description: Create, use, and manage API keys with scopes and resource access
+---
+
+import { CodeBlock } from "@/components/docs";
+
+## TL;DR
+
+- Generate keys in [Organization Settings → API Keys](https://app.datamate.cc/organizations/settings#api-keys)
+- Use either `Authorization: Bearer <key>` or `x-api-key: <key>`
+- Scopes: `read:data`, `track:events`, `read:links`, `write:links`, `manage:websites`, `manage:flags`, `manage:config`
+- Access can be global or scoped to a resource like a specific `website`
+- For private websites, include `website_id` and ensure the key has `read:data`
+- Rotate and revoke keys in [Organization Settings → API Keys](https://app.datamate.cc/organizations/settings#api-keys); only the prefix/start should be shared/logged
+
+### What is an API key?
+
+An API key authenticates server-to-server calls to Datamate. It supports fine-grained scopes and optional resource scoping to enforce least-privilege access.
+
+### Create a key
+
+1. Open [Organization Settings → API Keys](https://app.datamate.cc/organizations/settings#api-keys)
+2. Click “Create API Key”
+3. Choose a name, optional organization, scopes, and resource access
+4. Copy the secret immediately (it’s only shown once)
+
+We only display the `prefix` and first characters (`start`) later for identification. Never share the full secret.
+
+### Use your key
+
+You can authenticate with either header:
+
+<CodeBlock 
+  language="bash"
+  code={`curl -H "Authorization: Bearer YOUR_API_KEY" \\
+  "https://api.datamate.cc/v1/websites/{website_id}/analytics"`}
+/>
+
+<CodeBlock 
+  language="bash"
+  code={`curl -H "x-api-key: YOUR_API_KEY" \\
+  "https://api.datamate.cc/v1/websites/{website_id}/analytics"`}
+/>
+
+Notes:
+
+- For private websites, include the `website_id` query or path parameter and ensure the key has `read:data` for that site.
+- For public websites, `website_id` may be optional depending on the endpoint semantics.
+- For link shortener analytics, use `link_id` instead of `website_id` to query analytics for specific shortened links.
+
+### Scopes
+
+- **read:data**: Read analytics data. Covers query endpoints (`POST /v1/query`, `POST /v1/query/compile`) and listing accessible websites (`GET /v1/query/websites`). Required for any dashboard-style data retrieval.
+- **track:events**: Send custom events via the SDK or `/track` endpoint
+- **read:links**: Read short links and their analytics
+- **write:links**: Create, update, and delete short links
+- **manage:websites**: Create, update, and delete websites and their settings
+- **manage:flags**: Create, update, and delete feature flags and targeting rules
+- **manage:config**: Integration config and organization settings
+
+Grant only what you need. Prefer resource-scoped access where possible.
+
+#### What each scope unlocks
+
+| Scope | Endpoints / actions |
+|-------|---------------------|
+| `read:data` | `POST /v1/query`, `POST /v1/query/compile`, `GET /v1/query/websites`, `websites.list` RPC |
+| `track:events` | `POST /track` (custom events, pageviews, sessions) |
+| `read:links` | `GET /v1/links/*` read endpoints, link analytics queries |
+| `write:links` | `POST /v1/links`, `PATCH /v1/links/:id`, `DELETE /v1/links/:id` |
+| `manage:websites` | Create / update / delete websites, rotate tracking config |
+| `manage:flags` | Feature flag CRUD, targeting rule edits, flag evaluation admin |
+| `manage:config` | Integration config and organization-level settings |
+
+Listing websites is intentionally gated by `read:data` (not a separate `read:websites` scope) because the list is only useful for picking a site to query — any key that can list sites can already read their analytics.
+
+### Resource access
+
+Access can be scoped to:
+
+- **global**: Applies to all websites in the organization
+- **website**: Applies to a specific website only
+
+Example: a key with `read:data` scoped to a single website can read analytics only for that website, not others in the organization.
+
+### Errors
+
+Authentication/authorization failures return structured errors:
+
+<CodeBlock 
+  language="json"
+  code={`{
+    "success": false,
+    "error": "Authentication required",
+    "code": "AUTH_REQUIRED"
+  }`}
+/>
+
+<CodeBlock 
+  language="json"
+  code={`{
+    "success": false,
+    "error": "Insufficient permissions",
+    "code": "FORBIDDEN"
+  }`}
+/>
+
+### Rotation and revocation
+
+- **Rotate** to generate a new secret for the same key (update your servers immediately)
+- **Revoke** to immediately disable a key (cannot be undone; create a new one if needed)
+
+Actions are available in [Organization Settings → API Keys](https://app.datamate.cc/organizations/settings#api-keys) under each key’s detail view.
+
+### Rate limits
+
+All API endpoints are rate-limited. See the Rate Limits section in the API Reference. Responses include standard `X-RateLimit-*` headers where applicable.
+
+### Audit Logging
+
+All API key usage is logged for security and compliance:
+
+- **Authentication events**: Successful and failed key usage
+- **Scope resolution**: What permissions were checked and granted
+- **Resource access**: Which data resources were accessed
+- **Administrative actions**: Key creation, rotation, and revocation
+
+Logs include IP addresses, user agents, and timestamps for security monitoring.
+
+### Best practices
+
+- Treat API keys like passwords; don't commit them to source control
+- Use environment variables or secret managers
+- Share only the prefix and `start` snippet for identification
+- Use least-privilege scopes and resource scoping
+- Rotate keys periodically and revoke unused keys
+- Monitor audit logs for suspicious activity
+- Use resource-scoped keys for better security

@@ -1,0 +1,215 @@
+---
+title: Framer
+description: Add privacy-first analytics to your Framer site
+---
+
+import { Step, Steps } from "@/components/docs";
+import { Callout } from "@/components/docs";
+import { CodeBlock } from "@/components/docs";
+import { Card, Cards } from "@/components/docs";
+
+Datamate enables you to gather privacy-first analytics on user behavior, capture custom events, track performance metrics, and more within your Framer site - all while maintaining GDPR compliance without cookies.
+
+<Callout type="info">
+**Easy Setup**: Install our [official Framer plugin](https://www.framer.com/marketplace/plugins/datamate-analytics/) from the Framer Marketplace for the fastest setup, or manually add the script using the instructions below.
+</Callout>
+
+## Installation Methods
+
+### Option 1: Framer Plugin (Recommended)
+
+The easiest way to add Datamate to your Framer site is through our official plugin:
+
+<Steps>
+<Step>
+
+## Install the Plugin
+
+1. Open your Framer project
+2. Go to **Plugins** in the left sidebar
+3. Search for "Datamate Analytics"
+4. Click **Install** on the [Datamate Analytics plugin](https://www.framer.com/marketplace/plugins/datamate-analytics/)
+
+</Step>
+<Step>
+
+## Configure Settings
+
+1. Enter your Client ID from your [Datamate dashboard](https://app.datamate.cc)
+2. Configure optional settings:
+   - Custom CDN URL (for self-hosted setups)
+   - Custom Dashboard URL (for self-hosted setups)
+
+</Step>
+<Step>
+
+## Publish Your Site
+
+Click **Publish** to make your changes live.
+
+**Plugin Benefits**:
+- Zero configuration needed
+- Automatic updates
+- Self-hosted option available
+- No manual code editing required
+
+<Callout type="success">
+Plugin created by [Dominik Koch](https://dominikkoch.dev/)
+</Callout>
+
+</Step>
+</Steps>
+
+### Option 2: Manual Installation
+
+If you prefer manual control or need custom configuration:
+
+<Steps>
+<Step>
+
+## Get Your Tracking Script
+
+Navigate to your [Datamate dashboard](https://app.datamate.cc) and copy your tracking code snippet:
+
+<CodeBlock
+  language="html"
+  code={`<script>
+  (function () {
+    var script = document.createElement("script");
+    script.async = true;
+    script.src = "https://cdn.datamate.cc/datamate.js";
+    script.setAttribute("data-client-id", "YOUR_CLIENT_ID");
+    script.setAttribute("data-track-attributes", "true");
+    script.setAttribute("data-track-errors", "true");
+    document.head.appendChild(script);
+  })();
+</script>`}
+/>
+
+</Step>
+<Step>
+
+## Add the Script to Your Framer Project
+
+1. Open your Framer project
+2. Go to **Site Settings** > **General**
+3. Scroll down to **Custom Code**
+4. Paste your Datamate snippet into the **Start of &lt;head&gt; tag** section
+5. Click **Save** and publish your changes
+
+</Step>
+<Step>
+
+## Verify Installation
+
+Once published, you can verify that Datamate is working by:
+
+1. Visiting your live Framer site
+2. Opening your browser's developer tools (F12)
+3. Checking the Console tab for a "Datamate initialized" message
+4. Visiting your Datamate dashboard to see real-time analytics
+
+<Callout type="success">
+If you see real-time data in your dashboard, congratulations! Datamate is now tracking your Framer site analytics.
+</Callout>
+
+</Step>
+</Steps>
+
+## Advanced Features
+
+### Custom Event Tracking
+
+Track custom interactions in your Framer components using data attributes:
+
+<CodeBlock
+  language="html"
+  code={`<!-- Track button clicks -->
+<button data-track="cta_clicked" data-button-type="primary">Get Started</button>
+
+<!-- Track form submissions -->
+<form data-track="newsletter_signup" data-form-location="header">
+  <!-- form content -->
+</form>`}
+/>
+
+### Performance Monitoring
+
+Enable performance tracking by updating your script configuration:
+
+<CodeBlock
+  language="html"
+  code={`<script>
+  (function () {
+    var script = document.createElement("script");
+    script.async = true;
+    script.src = "https://cdn.datamate.cc/datamate.js";
+    script.setAttribute("data-client-id", "YOUR_CLIENT_ID");
+		script.setAttribute("data-track-web-vitals", "true");
+    script.setAttribute("data-track-errors", "true");
+    document.head.appendChild(script);
+  })();
+</script>`}
+/>
+
+## Benefits for Framer Sites
+
+- **Cookie-free tracking**: No cookie consent banners needed
+- **Lightweight**: About 12 KB gzipped for the current tracker bundle
+- **True privacy**: No fingerprinting, complete data ownership
+- **Fast Loading**: Async loading won't slow down your Framer site
+- **Performance visibility**: Collect Core Web Vitals when enabled
+- **Privacy Compliant**: Fully GDPR and CCPA compliant
+- **Real-time Data**: See visitor activity as it happens
+- **Open Source**: Fully transparent and auditable code
+
+## Troubleshooting
+
+### Plugin Issues
+
+<Callout type="warning">
+If the plugin isn't working:
+
+1. Ensure you've entered the correct Client ID
+2. Verify your site is published (not just preview mode)
+3. Check that the plugin is enabled in your Framer project settings
+4. For self-hosted setups, verify your CDN and Dashboard URLs are correct
+</Callout>
+
+### Script Not Loading
+
+<Callout type="warning">
+If Datamate isn't working:
+
+1. Ensure the script is in the **Start of &lt;head&gt; tag** section
+2. Check that your Client ID is correct
+3. Verify your site is published (not just preview mode)
+4. Check browser console for any error messages
+</Callout>
+
+### Data Not Appearing
+
+<Callout type="info">
+If analytics data isn't showing:
+
+1. Wait 2-3 minutes for data processing
+2. Check that your domain is verified in Datamate dashboard
+3. Ensure you're viewing the correct date range
+4. Try visiting your site in an incognito window
+</Callout>
+
+## Related Integrations
+
+<Cards>
+  <Card title="Webflow" href="/docs/Integrations/webflow">
+    Visual builder integration for Webflow sites.
+  </Card>
+  <Card title="Bubble" href="/docs/Integrations/bubble">
+    No-code integration for Bubble applications.
+  </Card>
+  <Card title="Wix" href="/docs/Integrations/wix">
+    Simple setup for Wix websites.
+  </Card>
+</Cards>
+
+Need help? Contact our support team at [support@datamate.cc](mailto:support@datamate.cc).

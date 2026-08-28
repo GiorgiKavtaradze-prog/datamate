@@ -1,0 +1,206 @@
+---
+title: MCP Server
+description: Connect AI agents to your analytics data via the Model Context Protocol
+---
+
+import { Callout, CodeBlock, Card, Cards } from "@/components/docs";
+
+The Datamate MCP server lets AI agents (Claude, Cursor, Windsurf, or any MCP-compatible client) query your analytics, manage feature flags, triage errors, and more through a standard protocol.
+
+## Endpoint
+
+| Environment | URL |
+|-------------|-----|
+| Production | `https://api.datamate.cc/v1/mcp/` |
+| Local | `http://localhost:3001/v1/mcp/` |
+
+The server uses the **Streamable HTTP** transport (JSON-RPC over HTTP). No SSE or WebSocket connection required.
+
+Alternate transport surfaces are also available at `https://api.datamate.cc/mcp` and `https://api.datamate.cc/.well-known/mcp` for WebMCP-capable agents.
+
+## Discovery Manifest
+
+Agents can discover the Datamate MCP server from either well-known manifest URL:
+
+| Manifest | URL |
+|----------|-----|
+| Primary | `https://www.datamate.cc/.well-known/mcp.json` |
+| Alternate | `https://www.datamate.cc/.well-known/mcp/manifest.json` |
+| Server card | `https://www.datamate.cc/.well-known/mcp/server-card.json` |
+| API-hosted server card | `https://api.datamate.cc/.well-known/mcp/server-card.json` |
+
+The manifest includes the Streamable HTTP endpoint, API-key auth header, required scopes, related OpenAPI spec, and a ready-to-use MCP client config template.
+
+## Authentication
+
+Pass an API key with the `read:data` scope:
+
+<CodeBlock 
+  language="json"
+  code={`{
+  "mcpServers": {
+    "datamate": {
+      "type": "http",
+      "url": "https://api.datamate.cc/v1/mcp/",
+      "headers": {
+        "x-api-key": "dbdy_your_api_key_here"
+      }
+    }
+  }
+}`}
+/>
+
+<Callout type="info">
+  Get your API key from [Dashboard → Organization Settings → API Keys](https://app.datamate.cc/organizations/settings#api-keys). The key needs at least the `read:data` scope. Add `manage:websites` to reply to investigations.
+</Callout>
+
+## Client Setup
+
+### Claude Code / Claude Desktop
+
+Add to your `.mcp.json` or Claude Desktop config:
+
+<CodeBlock 
+  language="json"
+  code={`{
+  "mcpServers": {
+    "datamate": {
+      "type": "http",
+      "url": "https://api.datamate.cc/v1/mcp/",
+      "headers": {
+        "x-api-key": "dbdy_your_api_key_here"
+      }
+    }
+  }
+}`}
+/>
+
+### Cursor / Windsurf
+
+Add to your MCP settings (typically `.cursor/mcp.json` or workspace settings):
+
+<CodeBlock 
+  language="json"
+  code={`{
+  "mcpServers": {
+    "datamate": {
+      "type": "http",
+      "url": "https://api.datamate.cc/v1/mcp/",
+      "headers": {
+        "x-api-key": "dbdy_your_api_key_here"
+      }
+    }
+  }
+}`}
+/>
+
+## Available Tools
+
+### Analytics
+
+| Tool | Description |
+|------|-------------|
+| `get_data` | Typed analytics queries (top_pages, recent_errors, errors_by_type, etc.). Batch 2-10 queries in one call. |
+| `capabilities` | Query types, date presets, categories, and compact schema hints. Filter by category. |
+| `get_schema` | ClickHouse column definitions. Use when a field name is uncertain. |
+| `list_websites` | List websites accessible to the authenticated key. |
+
+### Investigations
+
+| Tool | Description |
+|------|-------------|
+| `list_investigations` | List durable investigations and their current status. |
+| `get_investigation` | Read an investigation's evidence, outcome, and reply timeline. |
+| `reply_to_investigation` | Add context and queue the same investigation to continue. |
+
+`reply_to_investigation` returns the durable reply status immediately. If it is `queued` or `running`, call `get_investigation` with the same investigation ID until the reply is `succeeded` or `failed`; the new outcome appears in that timeline.
+
+### Funnels & Goals
+
+| Tool | Description |
+|------|-------------|
+| `list_funnels` | List configured funnels. |
+| `get_funnel_analytics` | Per-step conversion analytics for a funnel. |
+| `list_goals` | List configured goals. |
+| `get_goal_analytics` | Goal completion analytics. |
+
+### Feature Flags
+
+| Tool | Description |
+|------|-------------|
+| `list_flags` | List active feature flags. |
+| `create_flag` | Create a new feature flag (requires confirmation). |
+| `update_flag` | Update flag configuration (requires confirmation). |
+
+### Links
+
+| Tool | Description |
+|------|-------------|
+| `list_links` | List short links. |
+| `search_links` | Search links by keyword. |
+| `list_link_folders` | List link folders with usage counts. |
+
+## Conventions
+
+**Website selection**: Any tool that needs a website accepts `websiteId`, `websiteName`, or `websiteDomain`. Pass one.
+
+**Dates**: Use a `preset` (e.g. `last_7d`, `last_30d`) OR both `from` and `to` (YYYY-MM-DD). Defaults to `last_7d`. Passing only one of `from`/`to` is rejected.
+
+**Filters**: The `field` value is the ClickHouse column name. Use `get_schema` when uncertain. Error messages suggest close matches on typos.
+
+**Mutations**: When a tool exposes `confirmed`, preview with `confirmed: false`, then execute with `confirmed: true`. Investigation replies use a stable `replyId` for safe retries instead.
+
+## Example Usage
+
+Batch multiple queries in a single `get_data` call:
+
+<CodeBlock 
+  language="json"
+  code={`{
+  "tool": "get_data",
+  "arguments": {
+    "websiteDomain": "example.com",
+    "queries": [
+      { "type": "summary_metrics", "preset": "last_7d" },
+      { "type": "top_pages", "preset": "last_7d", "limit": 5 },
+      { "type": "top_referrers", "preset": "last_7d", "limit": 5 },
+      { "type": "error_summary", "preset": "last_7d" }
+    ]
+  }
+}`}
+/>
+
+Filter errors by type:
+
+<CodeBlock 
+  language="json"
+  code={`{
+  "tool": "get_data",
+  "arguments": {
+    "websiteDomain": "example.com",
+    "type": "recent_errors",
+    "preset": "last_7d",
+    "limit": 20,
+    "filters": [
+      { "field": "error_type", "op": "eq", "value": "TypeError" }
+    ]
+  }
+}`}
+/>
+
+## Resources
+
+The server exposes a `datamate://guide` resource with extended workflow tips and known footguns. MCP clients that support resources can read it for additional context.
+
+## Scopes & Access Control
+
+Tools are filtered based on your API key's scopes:
+
+| Scope | Tools |
+|-------|-------|
+| `read:data` | Analytics, investigations, schema, and read-only tools |
+| `manage:websites` | Reply to investigations; create goals, funnels, and annotations |
+| `manage:flags` + `manage:websites` | Feature flag mutations |
+| `write:links` | Link mutations |
+
+Session-authenticated users (via the dashboard) get access based on their organization role instead.

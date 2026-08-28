@@ -1,0 +1,34 @@
+{
+  "name": "@datamate/redis",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "main": "./index.ts",
+  "types": "./index.ts",
+  "exports": {
+    ".": "./index.ts",
+    "./bullmq": "./bullmq.ts",
+    "./cacheable": "./cacheable.ts",
+    "./rate-limit": "./rate-limit.ts",
+    "./redis": "./redis.ts",
+    "./stream-buffer": "./stream-buffer.ts",
+    "./drizzle-cache": "./drizzle-cache.ts",
+    "./cache-invalidation": "./cache-invalidation.ts",
+    "./links-cache": "./links-cache.ts",
+    "./click-dedup": "./click-dedup.ts",
+    "./uptime-queue": "./uptime-queue.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit",
+    "test": "bun test --max-concurrency=1 *.test.ts"
+  },
+  "dependencies": {
+    "bullmq": "^5.78.0",
+    "ioredis": "^5.8.2"
+  },
+  "devDependencies": {
+    "@types/node": "^26.0.0",
+    "typescript": "catalog:"
+  },
+  "description": "Redis caching and pub/sub utilities for Datamate"
+}

@@ -1,0 +1,19 @@
+{
+  "title": "SDK Reference",
+  "description": "SDK documentation by runtime: browser, server, feature flags, and utilities",
+  "icon": "Code",
+  "pages": [
+    "index",
+    "configuration",
+    "identify-users",
+    "react",
+    "nuxt",
+    "vue",
+    "vanilla-js",
+    "node",
+    "tracker",
+    "feature-flags",
+    "server-flags",
+    "devtools"
+  ]
+}

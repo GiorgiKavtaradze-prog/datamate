@@ -1,0 +1,466 @@
+---
+title: Google Tag Manager
+description: Add Datamate analytics through Google Tag Manager
+---
+
+import { Card, Cards } from "@/components/docs";
+
+Integrate Datamate with Google Tag Manager for centralized tag management while maintaining privacy-first analytics. Perfect for teams managing multiple tracking tools.
+
+> TL;DR: In GTM, create a Custom HTML tag with an inline loader that appends `https://cdn.datamate.cc/datamate.js` and sets `data-client-id`. Enable optional flags such as `data-track-attributes` or `data-track-errors`. Page views and sessions are automatic. Trigger on All Pages and publish.
+
+## Why Use GTM with Datamate?
+
+- **Centralized Management**: Manage Datamate alongside other marketing tools
+- **Team Collaboration**: Non-developers can deploy tracking updates
+- **Version Control**: Built-in versioning and rollback capabilities
+- **Testing**: Preview and debug mode before publishing
+- **Conditional Loading**: Load Datamate based on specific conditions
+
+## Basic Setup
+
+### Step 1: Create Datamate Tag
+
+1. In GTM, click **Add a new tag**
+2. Choose **Custom HTML** as the tag type
+3. Add the Datamate script:
+
+> **Important**: GTM sanitizes HTML and removes non-standard attributes like `data-client-id`. Always use `createElement()` and `setAttribute()` as shown below:
+
+```html
+<script>
+  (function () {
+    var el = document.createElement("script");
+    el.src = "https://cdn.datamate.cc/datamate.js";
+    el.async = true;
+    el.setAttribute("data-client-id", "Datamate Client ID");
+    el.setAttribute("data-track-attributes", "true");
+    el.setAttribute("data-track-errors", "true");
+    document.head.appendChild(el);
+  })();
+</script>
+```
+
+4. Name your tag "Datamate - Analytics Script"
+
+### Step 2: Create Variables
+
+Create a **Constant** variable for your Client ID:
+
+1. Go to **Variables** > **User-Defined Variables**
+2. Click **New** > **Constant**
+3. Name: "Datamate Client ID"
+4. Value: Your actual Client ID from Datamate dashboard
+
+### Step 3: Set Trigger
+
+1. In your Datamate tag, click **Triggering**
+2. Choose **All Pages** trigger
+3. Save the tag
+
+### Step 4: Publish
+
+1. Click **Submit** to create a version
+2. Add version name and description
+3. Click **Publish**
+
+## Advanced Configuration
+
+### Environment-Based Loading
+
+Load different Datamate configurations based on environment:
+
+```html
+<script>
+  (function() {
+    var isProduction = {{Page Hostname}} === 'yourdomain.com';
+    var clientId = isProduction ? '{{Datamate Prod Client ID}}' : '{{Datamate Dev Client ID}}';
+
+    var el = document.createElement("script");
+    el.src = "https://cdn.datamate.cc/datamate.js";
+    el.async = true;
+    el.setAttribute("data-client-id", clientId);
+    el.setAttribute("data-track-attributes", "true");
+    el.setAttribute("data-track-errors", "true");
+    el.setAttribute("data-debug", isProduction ? "false" : "true");
+    document.head.appendChild(el);
+  })();
+</script>
+```
+
+### Conditional Loading
+
+Load Datamate only for specific conditions:
+
+```html
+<script>
+  (function() {
+    // Only load for non-internal traffic
+    if ({{Internal Traffic}} === 'false') {
+      var el = document.createElement("script");
+      el.src = "https://cdn.datamate.cc/datamate.js";
+      el.async = true;
+      el.setAttribute("data-client-id", "{{Datamate Client ID}}");
+      el.setAttribute("data-track-attributes", "true");
+      el.setAttribute("data-track-errors", "true");
+      document.head.appendChild(el);
+    }
+  })();
+</script>
+```
+
+## Event Tracking Setup
+
+### Custom Event Tags
+
+Create tags for specific events:
+
+**E-commerce Purchase Tag:**
+
+```html
+<script>
+  window.dataLayer = window.dataLayer || [];
+
+  if (window.datamate && {{ecommerce.purchase}}) {
+    datamate.track('purchase', {
+      transaction_id: {{Transaction ID}},
+      value: {{Purchase Revenue}},
+      currency: {{Currency}},
+      items: {{Enhanced Ecommerce Items}}
+    });
+  }
+</script>
+```
+
+**Form Submission Tag:**
+
+```html
+<script>
+  if (window.datamate) {
+    datamate.track('form_submit', {
+      form_id: {{Form ID}},
+      form_name: {{Form Name}},
+      form_location: {{Page Path}}
+    });
+  }
+</script>
+```
+
+### Data Layer Integration
+
+Send GTM data layer events to Datamate:
+
+```html
+<script>
+  if (window.datamate) {
+    datamate.track({{Event}}, {
+      category: {{Event Category}},
+      action: {{Event Action}},
+      label: {{Event Label}},
+      value: {{Event Value}},
+      custom_parameter: {{Custom Parameter}}
+    });
+  }
+</script>
+```
+
+## Triggers Configuration
+
+The analytics script records pageviews automatically, including SPA navigation. Use the **All Pages** trigger only to load the script; do not add a second pageview tag.
+
+### Scroll Tracking
+
+Set up scroll depth tracking:
+
+1. **Trigger Type**: Scroll Depth
+2. **Vertical Scroll Depths**: 25, 50, 75, 90
+3. **Tag**: Custom HTML with scroll tracking
+
+```html
+<script>
+  if (window.datamate) {
+    datamate.track('scroll_depth', {
+      scroll_depth: {{Scroll Depth Threshold}},
+      page_path: {{Page Path}},
+      page_title: {{Page Title}}
+    });
+  }
+</script>
+```
+
+### Click Tracking
+
+Track specific button clicks:
+
+1. **Trigger Type**: Click - All Elements
+2. **Conditions**: Click Classes contains "track-button"
+3. **Tag**: Custom HTML with click tracking
+
+```html
+<script>
+  if (window.datamate) {
+    datamate.track('button_click', {
+      button_text: {{Click Text}},
+      button_classes: {{Click Classes}},
+      page_path: {{Page Path}}
+    });
+  }
+</script>
+```
+
+## E-commerce Integration
+
+### Enhanced E-commerce Setup
+
+Track the complete customer journey:
+
+**Product View Tag:**
+
+```html
+<script>
+  if (window.datamate && {{ecommerce.detail}}) {
+    datamate.track('product_view', {
+      product_id: {{Product ID}},
+      product_name: {{Product Name}},
+      product_category: {{Product Category}},
+      product_price: {{Product Price}},
+      currency: {{Currency}}
+    });
+  }
+</script>
+```
+
+**Add to Cart Tag:**
+
+```html
+<script>
+  if (window.datamate && {{ecommerce.add}}) {
+    datamate.track('add_to_cart', {
+      product_id: {{Product ID}},
+      product_name: {{Product Name}},
+      quantity: {{Quantity}},
+      value: {{Item Revenue}},
+      currency: {{Currency}}
+    });
+  }
+</script>
+```
+
+**Begin Checkout Tag:**
+
+```html
+<script>
+  if (window.datamate && {{ecommerce.checkout}}) {
+    datamate.track('begin_checkout', {
+      value: {{Cart Value}},
+      currency: {{Currency}},
+      items: {{Enhanced Ecommerce Items}}
+    });
+  }
+</script>
+```
+
+## User Privacy and Consent
+
+### GDPR Compliance
+
+Respect user privacy choices:
+
+```html
+<script>
+  (function() {
+    // Check consent status
+    var hasConsent = {{Cookie Consent Status}} === 'granted';
+
+    if (hasConsent) {
+      var el = document.createElement("script");
+      el.src = "https://cdn.datamate.cc/datamate.js";
+      el.async = true;
+      el.setAttribute("data-client-id", "{{Datamate Client ID}}");
+      el.setAttribute("data-track-attributes", "true");
+      el.setAttribute("data-track-errors", "true");
+      document.head.appendChild(el);
+    }
+  })();
+</script>
+```
+
+### Consent Mode Integration
+
+Integrate with Google Consent Mode:
+
+```html
+<script>
+  gtag("consent", "default", {
+    analytics_storage: "denied",
+    ad_storage: "denied",
+  });
+
+  // When user grants consent
+  gtag("consent", "update", {
+    analytics_storage: "granted",
+  });
+
+  // Initialize Datamate after consent
+  if (window.datamate) {
+    datamate.track("consent_granted", {
+      consent_type: "analytics",
+      timestamp: new Date().toISOString(),
+    });
+  }
+</script>
+```
+
+## Debugging and Testing
+
+### Debug Mode Setup
+
+Enable debug mode for testing:
+
+```html
+<script>
+  var isDebugMode = {{Debug Mode}} === 'true';
+
+  if (window.datamate && isDebugMode) {
+    console.log('Datamate Debug Mode Enabled');
+    datamate.track('debug_event', {
+      page: {{Page Path}},
+      timestamp: new Date().toISOString()
+    });
+  }
+</script>
+```
+
+### Preview Mode Testing
+
+1. Click **Preview** in GTM
+2. Visit your website in the debug session
+3. Verify Datamate tags are firing correctly
+4. Check browser console for any errors
+5. Confirm events in Datamate dashboard
+
+### Variable Testing
+
+Create test variables for debugging:
+
+**Debug Info Variable:**
+
+```javascript
+function() {
+  return {
+    page_path: {{Page Path}},
+    page_title: {{Page Title}},
+    user_agent: navigator.userAgent,
+    timestamp: new Date().toISOString()
+  };
+}
+```
+
+## Best Practices
+
+### Performance Optimization
+
+1. **Async Loading**: Always load Datamate asynchronously
+2. **Conditional Loading**: Only load when necessary
+3. **Error Handling**: Wrap in try-catch blocks
+
+```html
+<script>
+  (function () {
+    try {
+      var el = document.createElement("script");
+      el.src = "https://cdn.datamate.cc/datamate.js";
+      el.async = true;
+      el.setAttribute("data-client-id", "{{Datamate Client ID}}");
+      el.onerror = function () {
+        console.warn("Datamate script failed to load");
+      };
+      document.head.appendChild(el);
+    } catch (e) {
+      console.error("Error initializing Datamate:", e);
+    }
+  })();
+</script>
+```
+
+### Tag Organization
+
+1. **Naming Convention**: Use clear, descriptive names
+2. **Folders**: Organize tags by vendor or purpose
+3. **Notes**: Add descriptions explaining each tag's purpose
+4. **Triggers**: Name triggers clearly (e.g., "Datamate - All Pages")
+
+### Version Management
+
+1. **Descriptive Names**: Use meaningful version names
+2. **Notes**: Document changes in each version
+3. **Testing**: Always test in preview before publishing
+4. **Rollback Plan**: Know how to revert if issues arise
+
+## Migration from Google Analytics
+
+### Replacing GA4 with Datamate
+
+1. **Pause GA4 tags** (don't delete immediately)
+2. **Create Datamate tags** with equivalent functionality
+3. **Test thoroughly** in preview mode
+4. **Gradual rollout** using percentage-based triggers
+5. **Monitor data** for consistency
+
+### Data Mapping
+
+Map GA4 events to Datamate equivalents:
+
+| GA4 Event   | Datamate Event | Notes                           |
+| ----------- | --------------- | ------------------------------- |
+| page_view   | screen_view     | Automatic |
+| purchase    | purchase        | Enhanced with privacy features  |
+| add_to_cart | add_to_cart     | Same structure                  |
+| scroll      | scroll_depth    | Custom implementation           |
+
+## Troubleshooting
+
+### Common Issues
+
+**Tag Not Firing:**
+
+- Check trigger conditions
+- Verify variable values in preview mode
+- Ensure GTM code is properly installed
+
+**Events Not Tracking:**
+
+- Verify Datamate script loads successfully
+- Check browser console for errors
+- Confirm Client ID is correct
+
+**Performance Issues:**
+
+- Ensure scripts load asynchronously
+- Check for blocking JavaScript errors
+- Monitor Core Web Vitals impact
+
+### Debug Checklist
+
+1. ✅ GTM container code installed correctly
+2. ✅ Datamate tag fires on correct triggers
+3. ✅ Client ID variable contains correct value
+4. ✅ No JavaScript errors in console
+5. ✅ Events appear in Datamate dashboard
+6. ✅ Privacy settings respected
+
+## Related Integrations
+
+<Cards>
+  <Card title="Shopify" href="/docs/Integrations/shopify">
+    Complete e-commerce tracking with purchase analytics.
+  </Card>
+  <Card title="Next.js" href="/docs/Integrations/nextjs">
+    App Router and Pages Router setup for Next.js apps.
+  </Card>
+  <Card title="WordPress" href="/docs/Integrations/wordpress">
+    Plugin or manual setup for WordPress sites.
+  </Card>
+</Cards>
+
+Need help with your GTM integration? Contact us at [support@datamate.cc](mailto:support@datamate.cc).

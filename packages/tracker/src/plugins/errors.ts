@@ -1,0 +1,145 @@
+import type { BaseTracker } from "../core/tracker";
+import type { ErrorSpan } from "../core/types";
+import { generateUUIDv4, logger } from "../core/utils";
+
+const extensionSchemes = [
+	"chrome-extension://",
+	"moz-extension://",
+	"safari-extension://",
+	"edge-extension://",
+	"brave-extension://",
+	"opera-extension://",
+	"vivaldi-extension://",
+] as const;
+
+const isExtensionSource = (candidate?: string | null) => {
+	if (!candidate) {
+		return false;
+	}
+
+	const normalized = candidate.toLowerCase();
+	return extensionSchemes.some((scheme) => normalized.includes(scheme));
+};
+
+const browserRuntimeNoisePatterns = [
+	/^Object Not Found Matching Id:\d+, MethodName:[A-Za-z_$][\w$]*, ParamCount:\d+$/,
+] as const;
+
+const isBrowserRuntimeNoise = (message?: string | null) => {
+	if (!message) {
+		return false;
+	}
+	return browserRuntimeNoisePatterns.some((pattern) => pattern.test(message));
+};
+
+export function initErrorTracking(tracker: BaseTracker): () => void {
+	if (tracker.isServer()) {
+		return () => {};
+	}
+
+	const trackError = (
+		error: Omit<ErrorSpan, "timestamp" | "path" | "anonymousId" | "sessionId">
+	) => {
+		if (tracker.options.disabled || tracker.isLikelyBot || tracker.isServer()) {
+			return;
+		}
+
+		const errorSpan: ErrorSpan = {
+			eventId: generateUUIDv4(),
+			timestamp: Date.now(),
+			path: window.location.pathname,
+			anonymousId: tracker.anonymousId,
+			sessionId: tracker.sessionId,
+			...error,
+			anonymizeVisitorIds: tracker.options.anonymizeVisitorIds,
+		};
+
+		logger.log("Queueing error", errorSpan);
+		tracker.sendError(errorSpan);
+	};
+
+	const errorHandler = (event: ErrorEvent) => {
+		if (
+			isExtensionSource(event.filename) ||
+			isExtensionSource(event.error?.stack)
+		) {
+			return;
+		}
+
+		if (event.error === null && event.message === "Script error.") {
+			return;
+		}
+
+		if (isBrowserRuntimeNoise(event.message)) {
+			return;
+		}
+
+		trackError({
+			message: event.message || "Unknown Error",
+			filename: event.filename,
+			lineno: event.lineno,
+			colno: event.colno,
+			stack: event.error?.stack,
+			errorType: event.error?.name || "Error",
+		});
+	};
+
+	const rejectionHandler = (event: PromiseRejectionEvent) => {
+		const reason = event.reason;
+
+		if (reason instanceof Error) {
+			if (isExtensionSource(reason.stack)) {
+				return;
+			}
+
+			trackError({
+				message: reason.message,
+				stack: reason.stack,
+				errorType: reason.name || "Error",
+			});
+			return;
+		}
+
+		let message = String(reason);
+		let stack: string | undefined;
+		if (typeof reason === "object" && reason !== null) {
+			if ("message" in reason && typeof reason.message === "string") {
+				message = reason.message;
+			}
+			if ("stack" in reason && typeof reason.stack === "string") {
+				stack = reason.stack;
+			}
+			if (!("message" in reason) || typeof reason.message !== "string") {
+				try {
+					message = JSON.stringify(reason);
+				} catch {
+					// Some rejection reasons are circular; fall back to String(reason).
+				}
+			}
+		}
+
+		if (isExtensionSource(message) || isExtensionSource(stack)) {
+			return;
+		}
+
+		if (isBrowserRuntimeNoise(message)) {
+			return;
+		}
+
+		trackError({
+			message,
+			stack,
+			errorType: "UnhandledRejection",
+		});
+	};
+
+	window.addEventListener("error", errorHandler);
+	window.addEventListener("unhandledrejection", rejectionHandler);
+
+	logger.log("Error tracking initialized");
+
+	return () => {
+		window.removeEventListener("error", errorHandler);
+		window.removeEventListener("unhandledrejection", rejectionHandler);
+	};
+}

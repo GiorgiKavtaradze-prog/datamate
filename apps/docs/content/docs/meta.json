@@ -1,0 +1,25 @@
+{
+  "title": "Datamate Documentation",
+  "description": "Privacy-first analytics for modern websites",
+  "icon": "BarChart3",
+  "root": true,
+  "pages": [
+    "---Start---",
+    "index",
+    "getting-started",
+    "---Install---",
+    "Integrations",
+    "---SDK & API---",
+    "sdk",
+    "api",
+    "api-keys",
+    "---Recipes---",
+    "hooks",
+    "---Guides---",
+    "dashboard",
+    "performance",
+    "privacy",
+    "compliance",
+    "security"
+  ]
+}
