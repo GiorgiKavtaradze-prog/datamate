@@ -327,6 +327,87 @@ const users = await db
 ```
 
 
+## Production Patterns
+
+### Tag-based invalidation
+
+Invalidate related cache entries across tables without knowing every query key. Mutations may pass `tags`:
+
+```typescript
+// Tag a query at write time
+const site = await db
+  .select()
+  .from(websitesTable)
+  .where(eq(websitesTable.id, websiteId))
+  .$withCache({
+    key: `website:${websiteId}`,
+    ttl: 600,
+    tables: ["websites"],
+    tag: `website:${websiteId}`,
+  });
+
+// Later, a settings mutation invalidates every entry tagged with this website,
+// even when the invalidation is triggered from a different code path:
+await db
+  .update(websitesTable)
+  .set({ settings: newSettings })
+  .where(eq(websitesTable.id, websiteId));
+```
+
+### Row-level cache keys for hot reads
+
+Keep keys deterministic and ttl modest for frequently-read rows:
+
+```typescript
+const profile = await db
+  .select()
+  .from(profilesTable)
+  .where(
+    and(
+      eq(profilesTable.id, profileId),
+      eq(profilesTable.organizationId, orgId),
+    ),
+  )
+  .$withCache({
+    key: `org:${orgId}:profile:${profileId}`,
+    ttl: 60,
+    tables: ["profiles"],
+  });
+```
+
+### Measuring cache effectiveness
+
+Cache failures are non-fatal by design — your application keeps working even if Redis is down, it simply misses. For observability, sample misses and hits at your call sites:
+
+```typescript
+const started = performance.now();
+const rows = await db
+  .select()
+  .from(usersTable)
+  .$withCache({ key: "all-users", ttl: 300, tables: ["users"] });
+metrics.record("db.users.cache", { ms: performance.now() - started });
+```
+
+## Using Bun's built-in Redis client
+
+The cache accepts any client matching the `RedisCacheClient` interface — including Bun's native `RedisClient`. No extra dependency needed:
+
+```typescript
+import { RedisClient } from "bun";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { RedisDrizzleCache } from "@datamate/cache";
+import * as schema from "./schema";
+
+const redis = new RedisClient(process.env.REDIS_URL!);
+const cache = new RedisDrizzleCache({
+  redis,
+  defaultTtl: 300,
+  strategy: "explicit",
+});
+
+const db = drizzle(process.env.DATABASE_URL!, { schema, cache });
+```
+
 ## Error Handling
 
 The cache implementation handles errors gracefully:

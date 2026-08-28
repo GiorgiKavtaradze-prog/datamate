@@ -96,6 +96,26 @@ import { track } from "@datamate/sdk";
 track("signup_completed", { method: "google", plan: "pro" });
 ```
 
+**Server-side events (Node.js / cron / webhooks)** — authenticate with your API key and always `flush()` before the process exits:
+
+```ts
+import { Datamate } from "@datamate/sdk/node";
+
+const client = new Datamate({
+  apiKey: process.env.DATAMATE_API_KEY!,
+  websiteId: process.env.DATAMATE_WEBSITE_ID,
+  source: "backend",
+});
+
+await client.track({
+  name: "job_completed",
+  eventId: `job-${jobId}`, // ⚡ re-sends of the same eventId are deduplicated
+  properties: { queue: "emails", total: 128 },
+});
+const result = await client.flush();
+if (!result.success) console.error("Failed to flush analytics:", result.error);
+```
+
 > Vue/Nuxt components, server-side tracking (`@datamate/sdk/node`) with batching & `flush()`, feature flags, and a native Swift package are also available — see [`packages/sdk`](packages/sdk/README.md) and the full guides under [`apps/docs/content/docs/sdk`](apps/docs/content/docs/sdk/index.mdx).
 
 ## 📚 Repository Guide

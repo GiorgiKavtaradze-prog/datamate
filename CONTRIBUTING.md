@@ -141,6 +141,24 @@ For parallel work, use one worktree per active branch, and never let two people 
 
 Use `<type>(<scope>): <description>` — e.g. `feat(dashboard): add export button`, `fix(api): handle null session`. Common scopes: `dashboard`, `api`, `rpc`, `basket`, `docs`, `db`, `sdk`, `tracker`, `deps`, `ci`. Split commits by intent (feature / bug fix / refactor / style copy / migration slice); keep unrelated surfaces in separate commits even when edited in the same session.
 
+## End-to-End: Shipping a Feature Slice
+
+A typical read→write feature crosses all three layers. Concretely:
+
+1. **Contract first.** Define the procedure in `packages/rpc` (Zod input/output, router endpoint, and — for mutations — `trackedProcedure`/`auditedSessionProcedure` so usage and audit events are recorded). Typecheck — the dashboard client (`apps/dashboard/lib/orpc.ts`) picks up the new typed procedure automatically.
+2. **Backend second.** If the procedure needs new data access, add the resolver/query builder in the API side or `packages/db`, keeping tenant isolation enforced in the shared layer (never rely on client-supplied IDs alone).
+3. **Frontend last.** Consume it from the dashboard with `orpc.<router>.<name>.queryOptions()` / `.mutationOptions()`, invalidate with the procedure's own `key()`, and render with the design system (`components/ds`).
+4. **Prove it.** Colocate a unit/integration test next to the changed code; add a Playwright spec (`apps/dashboard/test/e2e/specs/...`) when a real browser journey is covered.
+5. **Branch it.** One slice per branch/PR against `staging`; keep commits intent-scoped with conventional messages.
+
+### Pre-Push Checklist
+
+- [ ] `bun run lint` and `bun run check-types` pass (formatter drift can fail CI)
+- [ ] Relevant tests pass — `bun run test`, or a targeted `cd apps/api && bun test path/to/test.ts`
+- [ ] `git diff --stat` shows only this slice; no unrelated cleanup
+- [ ] `git status --short` has no `.env` or secrets staged
+- [ ] A changeset was added for any published package (`bun run changeset`)
+
 ## Code Style
 
 - Formatting & linting: **Ultracite (Biome)** — run `bun run lint` / `bun run format` before pushing; formatter-only drift can fail CI.

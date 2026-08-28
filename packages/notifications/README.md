@@ -4,7 +4,6 @@ Unified notification package for sending alerts across Slack, Discord, Email, Te
 
 ## Channels
 
-
 | Channel     | Config                | Setup                                      |
 | ----------- | --------------------- | ------------------------------------------ |
 | Slack       | `webhookUrl`          | Incoming webhook URL                       |
@@ -14,7 +13,6 @@ Unified notification package for sending alerts across Slack, Discord, Email, Te
 | Teams       | `webhookUrl`          | Incoming webhook URL                       |
 | Telegram    | `botToken` + `chatId` | Create bot via BotFather                   |
 | Google Chat | `webhookUrl`          | Space webhook URL                          |
-
 
 ## Quick Start
 
@@ -115,7 +113,81 @@ const client = new NotificationClient({
 await client.send(recoveredPayload, { channels: ["discord", "teams"] });
 ```
 
-Metadata includes `template: "uptime"`, `kind`, `url`, `siteLabel`, `checkedAt`, `httpCode`, and optional fields (`error`, `probeRegion`, timings, SSL) for webhooks and filtering. 
+Metadata includes `template: "uptime"`, `kind`, `url`, `siteLabel`, `checkedAt`, `httpCode`, and optional fields (`error`, `probeRegion`, timings, SSL) for webhooks and filtering.
+
+## Anomaly templates
+
+Build consistent payloads for traffic spikes and drops (metrics: `pageviews`, `errors`, `custom_events`, or any custom metric):
+
+```typescript
+import {
+  buildAnomalyNotificationPayload,
+  NotificationClient,
+  sendSlackWebhook,
+} from "@datamate/notifications";
+
+const payload = buildAnomalyNotificationPayload({
+  kind: "spike",
+  metric: "errors",
+  severity: "critical", // "warning" | "critical" → priority "high" | "urgent"
+  siteLabel: "Marketing site",
+  currentValue: 4_200,
+  baselineValue: 1_100,
+  percentChange: 282.4,
+  zScore: 6.1,
+  periodStart: "2026-08-21",
+  periodEnd: "2026-08-28",
+  dashboardUrl: "https://app.datamate.cc/websites/example.com",
+});
+
+await sendSlackWebhook(SLACK_URL, payload);
+
+// Or route it through the multi-channel client
+const client = new NotificationClient({
+  slack: { webhookUrl: SLACK_URL },
+  email: { sendEmailAction, defaultTo: "oncall@example.com" },
+});
+await client.send(payload); // uses defaultChannels (or all configured)
+```
+
+Metadata includes `template: "anomaly"`, `kind`, `metric`, `severity`, `currentValue`, `baselineValue`, `percentChange`, `zScore`, and the period — useful for filtering and downstream automations.
+
+## Generic webhooks
+
+Deliver a payload to any HTTP endpoint with custom headers and JSON body:
+
+```typescript
+const client = new NotificationClient({
+  webhook: {
+    url: "https://hooks.example.com/workflows/analytics",
+    headers: { authorization: "Bearer wf_123" },
+    defaultRetries: 3,
+  },
+});
+
+await client.sendToChannel("webhook", {
+  title: "Traffic Spike",
+  message: "300% increase detected",
+  metadata: { website: "example.com" },
+});
+```
+
+## Structured failure handling
+
+Every provider returns a `NotificationResult` — never throws for a single channel outage. Use `allSettled` semantics already built into `send()`:
+
+```typescript
+const results = await client.send(payload, { channels: ["slack", "email"] });
+
+for (const result of results) {
+  if (!result.success) {
+    logger.error("notification failed", {
+      channel: result.channel,
+      error: result.error,
+    });
+  }
+}
+```
 
 ## Email
 
@@ -127,7 +199,10 @@ import { Resend } from "resend";
 const client = new NotificationClient({
   email: {
     sendEmailAction: async (payload) =>
-      new Resend(API_KEY).emails.send({ from: "noreply@example.com", ...payload }),
+      new Resend(API_KEY).emails.send({
+        from: "noreply@example.com",
+        ...payload,
+      }),
     defaultTo: "alerts@example.com",
     from: "noreply@example.com",
   },
@@ -151,14 +226,12 @@ await client.sendToChannel("email", {
 
 All channels support priority levels with channel-specific rendering:
 
-
 | Priority | Discord      | Teams           | Telegram  | Slack         |
 | -------- | ------------ | --------------- | --------- | ------------- |
 | `urgent` | Red embed    | Attention color | 🔴 prefix | Context block |
 | `high`   | Orange embed | Warning color   | 🟠 prefix | Context block |
 | `normal` | Green embed  | Good color      | (none)    | (none)        |
 | `low`    | Blue embed   | Accent color    | 🔵 prefix | Context block |
-
 
 ## Reliability
 
@@ -170,7 +243,6 @@ All channels support priority levels with channel-specific rendering:
 
 ### `NotificationClient`
 
-
 | Method                            | Returns                         |
 | --------------------------------- | ------------------------------- |
 | `send(payload, options?)`         | `Promise<NotificationResult[]>` |
@@ -178,11 +250,17 @@ All channels support priority levels with channel-specific rendering:
 | `hasChannel(channel)`             | `boolean`                       |
 | `getConfiguredChannels()`         | `NotificationChannel[]`         |
 
-
 ### Types
 
 ```typescript
-type NotificationChannel = "slack" | "discord" | "email" | "webhook" | "teams" | "telegram" | "google-chat";
+type NotificationChannel =
+  | "slack"
+  | "discord"
+  | "email"
+  | "webhook"
+  | "teams"
+  | "telegram"
+  | "google-chat";
 type NotificationPriority = "low" | "normal" | "high" | "urgent";
 
 interface NotificationPayload {
@@ -199,4 +277,3 @@ interface NotificationResult {
   response?: unknown;
 }
 ```
-
