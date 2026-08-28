@@ -131,6 +131,22 @@ if (!result.success) console.error("Failed to flush analytics:", result.error);
 | [`apps/docs`](apps/docs/content/docs/index.mdx)              | Full product, API & SDK documentation (Fumadocs site)   |
 | [`docker-compose.selfhost.yml`](docker-compose.selfhost.yml) | Production self-hosting compose file                    |
 
+### Not sure where to start?
+
+```mermaid
+flowchart TD
+    Q{"What brings you here?"}
+    Q -->|"I want analytics in my app"| Track["Start Tracking Your App — this page"]
+    Q -->|"I want to run Datamate locally"| Run["Local Development — this page"]
+    Q -->|"I want it on my own servers"| Self["Self-Hosting — this page + docker-compose.selfhost.yml"]
+    Q -->|"I want to ship code"| Ship["CONTRIBUTING.md, then AGENTS.md"]
+    Q -->|"I used AI to build my contribution"| AIPol["AI_POLICY.md — disclosure is mandatory"]
+    Q -->|"I found a vulnerability"| Vuln["SECURITY.md — report privately, never publicly"]
+    Q -->|"I want to know where this is going"| Vision["ROADMAP.md for direction + SPEC.md for the contract"]
+```
+
+Every path ends in a section on this page or a document in the repository root — no dead ends.
+
 ## 🔧 How It Works
 
 ### Authentication & Session Flow
@@ -270,6 +286,18 @@ flowchart LR
 | `packages/email`                                                                                             | Transactional email via Resend                                     |
 | `packages/notifications`                                                                                     | Multi-channel alerting (Slack, Discord, Teams, Telegram…)          |
 | `packages/shared` · `mapper` · `query` · `api-keys` · `encryption` · `env` · `migrate` · `devtools` · `test` | Shared types, utilities, and infrastructure                        |
+
+### What lives where
+
+Storage is split by access pattern — and every query in the codebase follows this map:
+
+| Store                    | Owns                                                                                                                                   | Why it fits                                            |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| **PostgreSQL** (Drizzle) | Users, organizations, memberships, websites, settings, API keys, relational product state                                              | Transactions, referential integrity, row-level queries |
+| **ClickHouse**           | Events, pageviews, sessions, custom events, errors, Web Vitals, outgoing-link clicks, insight observations & investigation projections | Columnar scans and aggregations over billions of rows  |
+| **Redis**                | Query cache, BullMQ job queues, pub/sub fan-out                                                                                        | Sub-millisecond reads and durable async work           |
+
+Rule of thumb: aggregating traffic over time → ClickHouse; identity, configuration, or durable product state → PostgreSQL through Drizzle + `@datamate/cache`.
 
 ## 💻 Tech Stack
 

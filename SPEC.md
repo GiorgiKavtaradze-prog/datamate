@@ -58,6 +58,23 @@ retry unchanged. Each selected signal still gets its own exact agent turn, durab
 observation, and investigation history; a model does not manufacture a broad report
 from ungrounded raw data.
 
+## Investigation lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Open: act or ask creates or reopens the projection
+    Open --> Open: new evidence or a human reply resumes the case
+    Open --> Resolved: resolve closes with a rationale
+    Resolved --> Open: a materially worse recurrence reopens it
+    Resolved --> [*]
+    note right of Open
+        watch rechecks quietly and never interrupts;
+        a recovered signal closes the case
+    end note
+```
+
+An investigation is the only durable object that may interrupt people. Insights never do.
+
 ## Agent context
 
 The agent receives:
@@ -130,3 +147,17 @@ When business meaning is missing, inspect the definition, site, events, and conn
 Use `insight_observations` as the append-only Insights source and `analytics_insights` as the current investigation projection. An `act` or `ask` creates or reopens that projection; `resolve` may update an open investigation but never creates or reopens one. Recommendations are a read projection of the latest observation for each signal: standalone setup and measurement recommendations expire at their recheck time unless renewed, while definition recommendations also verify against the current definition. Keep one agent and one evidence/tool stack. Add storage only when this model cannot represent a real use case.
 
 Exact error-customer joins run as a private, aggregate-only enrichment after the backend selects a signal. They return counts and coverage, never visitor, profile, session, payment, order, or request identifiers. Identity joins report same-window resolution explicitly; attributed completed-payment matches require the payment to predate the affected profile's first error and remain a lower bound.
+
+## Glossary
+
+| Term              | Meaning                                                                             |
+| ----------------- | ----------------------------------------------------------------------------------- |
+| **Signal**        | A measured change with an exact entity, comparison window, baseline, and stable key |
+| **Insight**       | An append-only explanation of one signal at one point in time                       |
+| **Investigation** | The durable work object for one signal; `open` or `resolved`                        |
+| **Observation**   | One agent turn's durable record in the case timeline                                |
+| **Action**        | An optional proposed change with a target and a verification condition              |
+| **Outcome**       | The turn's operational next step: `act`, `ask`, or `resolve`                        |
+| **Recheck**       | A scheduled remeasure of a signal, even below the detector threshold                |
+| **Portfolio**     | The frozen, diversified set of distinct signals a run may investigate               |
+| **Brief**         | The chronological Insights view of useful observations across websites and time     |

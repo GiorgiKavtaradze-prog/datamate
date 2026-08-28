@@ -22,6 +22,31 @@ Datamate has clear, deliberate rules for how artificial intelligence may be used
 6. **Consequences.**
    Low-effort, low-quality AI driving may result in bans. We genuinely want to help early-career developers learn and grow — if that's your goal, skip the AI entirely and we'll gladly help you directly.
 
+## Quick Reference
+
+| Situation                                    | Allowed?                          | What's required                                                    |
+| --------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------- |
+| You wrote the code, AI helped polish it        | ✅                                 | Disclose the tool(s) and the extent in the PR                        |
+| AI produced a full PR                          | ✅ only with an accepted issue      | Reference the issue, disclose, human-verify everything before submitting |
+| Drive-by AI PR without a referenced issue      | ❌                                 | It will be closed                                                    |
+| AI-written issue or discussion post            | ✅                                 | A human must review **and edit** it before posting                   |
+| AI-generated images, video, or audio           | ❌                                 | Text and code are the only accepted AI media                          |
+| Undisclosed AI use discovered later            | ❌                                 | PR is closed; repeated behavior risks a ban                           |
+
+## Disclosure Template
+
+Copy this into your PR description — it takes ten seconds and satisfies rule 1:
+
+```markdown
+## AI disclosure
+- **Tools used:** Claude Code 2.x (agentic coding), ChatGPT (research only)
+- **Extent:** boilerplate and test scaffolding were AI-drafted; all logic, review, and verification were human
+- **Verification:** `bun run lint`, `bun run check-types`, and `bun run test` pass; feature manually exercised in the dashboard at `<URL / steps>`
+- **Linked issue:** #<accepted issue number>
+```
+
+A PR whose disclosure is honest but thin is welcome; a PR whose disclosure is missing is not.
+
 ## Scope
 
 These rules apply to outside contributions. Maintainers are exempt and may use AI tools at their discretion; they have earned the trust to exercise good judgment.

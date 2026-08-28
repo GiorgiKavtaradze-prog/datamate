@@ -179,6 +179,34 @@ For picker controls, use the component that matches the interaction:
 * Bun `mock.module` state can affect files in the same package test command; mocks for shared modules like `../lib/logger` must include every method later tests may call.
 * Client-side `NEXT_PUBLIC_*` checks must use direct `process.env.NEXT_PUBLIC_NAME` access (or a helper that does); dynamic helpers like `readBooleanEnv("NEXT_PUBLIC_...")` are not inlined into the browser bundle.
 
+## Task Playbooks
+
+Route every task through the layer that owns it — the fastest path is the one that respects the contract:
+
+| Task                        | Path                                                                                                                                                    | Verify with                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Add an RPC endpoint         | Define in `packages/rpc` (Zod in/out; mutations on `trackedProcedure`/`auditedSessionProcedure`) → implement in `apps/api` → consume via `orpc.<router>.<name>` | `bun run check-types` — the typed client picks it up automatically; colocated test |
+| Change the PostgreSQL schema | Edit the Drizzle schema in `packages/db` → `bun run db:push` (dev) or `db:migrate` (prod)                                                               | `bun run db:studio`; dependent queries still typecheck                    |
+| Change the ClickHouse schema | Edit the reference `.sql` in `packages/db/src/clickhouse/schema` → forward-only migration for shipped tables → `bun run generate-db`                     | `bun run ch:verify` reports no drift                                       |
+| Add `profile_id` to a table | Add it to `PROFILE_ID_TABLES` in `packages/db/src/clickhouse/identity.ts` and follow the failing `identity.test.ts`                                      | Identity test suite green                                                  |
+| Add an API-key resource     | Map scopes in `packages/api-keys/src/scopes.ts` → grant roles in `packages/auth/src/permissions.ts` → update the scope-map integration tests             | `link-handlers.test.ts` + `with-workspace.test.ts`                         |
+| Add a dashboard picker      | `DropdownMenu` for menus; `Select` only for an explicit select/combobox pattern; `Field` for labels, errors, ids                                         | `bun run lint` enforces the design-system policy                           |
+| Touch the SDK or tracker    | `bun run sdk:build` before dev; dist-only packages build before E2E                                                                                      | Dev overlay shows fresh queue & IDs                                        |
+| Debug a CI-only failure     | Compare env handling (Turbo strict env mode, literal `"true"` booleans, `bash -c` not `bash -lc`)                                                        | Same slice green in CI                                                     |
+
+## Definition of Done
+
+A slice is done when all of these hold — not when the code merely compiles:
+
+- [ ] `bun run lint`, `bun run check-types`, and the relevant `bun run test` suites pass.
+- [ ] Tenant isolation is enforced in the shared layer — never from client-supplied IDs alone.
+- [ ] New workspace dependencies are declared in the owning package's `package.json`.
+- [ ] Feature UI consumes `@datamate/ui` (or carries a specific `policy-ignore` reason).
+- [ ] Error paths preserve valid 4xx statuses; lifecycle code fails safe (non-zero exit, shutdown timeout).
+- [ ] Test fixtures are typed against their source types (`Context["apiKey"]`, `User`) so schema drift breaks compilation.
+- [ ] `git diff --stat` tells one story; the commit follows `<type>(<scope>): <description>`.
+- [ ] A Playwright spec covers any changed browser journey (E2E booleans as literal `"true"`/`"false"`).
+
 ## Quick Debugging Recipes
 
 | Symptom | First move |
