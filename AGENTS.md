@@ -179,6 +179,18 @@ For picker controls, use the component that matches the interaction:
 * Bun `mock.module` state can affect files in the same package test command; mocks for shared modules like `../lib/logger` must include every method later tests may call.
 * Client-side `NEXT_PUBLIC_*` checks must use direct `process.env.NEXT_PUBLIC_NAME` access (or a helper that does); dynamic helpers like `readBooleanEnv("NEXT_PUBLIC_...")` are not inlined into the browser bundle.
 
+## Quick Debugging Recipes
+
+| Symptom | First move |
+| --- | --- |
+| Dashboard gets `UNAUTHORIZED`/`FORBIDDEN` from RPC | Confirm the session cookie and `BETTER_AUTH_URL`; check that you're hitting the API through the ORPC link in `apps/dashboard/lib/orpc.ts`, and that the active organization + role has the required scope. |
+| Browser events never reach the dashboard | Inspect `window.datamate`/`window.db` in the console, confirm requests reach `basket.datamate.cc`, then check basket logs and `analytics.events` in ClickHouse. DevTools overlay shows queues and IDs. |
+| `bun run check-types` passes locally but CI fails | Check each workspace's own `package.json` — hoisting hides missing explicit dependencies. Add with `bun add <pkg>` inside the owning package. |
+| Cached data looks stale | `@datamate/cache` invalidates on Drizzle mutations. If you bypassed Drizzle or need broader invalidation, use the tag/table dependency directly. |
+| ClickHouse `ch:verify` reports drift | Reference `.sql` files in `packages/db/src/clickhouse/schema` are the source of truth. Never edit a shipped table as if it were new; prepare a forward-only migration. |
+| Agent SQL rejects a query | Agent SQL is restricted to `analytics.*` with a required tenant filter (`validateAgentSQL` / `requiresTenantFilter`). Check the query builder, not just the prompt. |
+| E2E browser session won't start | Confirm `DATAMATE_E2E_MODE=true` (literal `"true"`, not `"1"`) and `DATAMATE_E2E_TEST_KEY` reach the process that serves `/api/test/e2e/*` — Turbo strict env mode can drop them. |
+
 ## AI Policy Note
 
 The project has a formal AI usage policy (`AI_POLICY.md`). For contributions: all AI usage must be disclosed, PRs must reference an accepted issue, and all AI-generated code must be fully human-verified. Maintainers are exempt and may use AI at their discretion.

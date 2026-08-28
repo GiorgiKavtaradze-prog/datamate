@@ -50,3 +50,30 @@ content-type: application/json
 ```
 
 The route returns `userId`, `organizationId`, and optionally `websiteId`, and forwards Better Auth `Set-Cookie` headers so browser tests can start authenticated. Outside E2E mode, the route returns `404`.
+
+## Writing a spec
+
+Specs consume the shared fixtures exported from `apps/dashboard/test/e2e/fixtures.ts` — `authenticatedPage` comes pre-authenticated and `e2eSession` carries unique user/org/website IDs plus seeded analytics:
+
+```ts
+// specs/smoke/api-keys.spec.ts
+import { expect } from "@playwright/test";
+import { test } from "@/test/e2e/fixtures";
+
+test(
+  "creates and deletes an API key",
+  { tag: "@smoke" },
+  async ({ authenticatedPage, e2eSession }) => {
+    const keyName = `E2E key ${e2eSession.userId.slice(0, 8)}`;
+
+    await authenticatedPage.goto("/organizations/settings");
+    await authenticatedPage.getByRole("button", { name: "Create Key" }).click();
+    await authenticatedPage.getByLabel("Name").fill(keyName);
+    await authenticatedPage.getByRole("button", { name: "Create" }).click();
+
+    await expect(authenticatedPage.getByText(keyName)).toBeVisible();
+  },
+);
+```
+
+Keep selectors user/AT-facing (`getByRole`, `getByLabel`, `getByText`), assert visible behavior rather than implementation detail, and never depend on another test's rows.

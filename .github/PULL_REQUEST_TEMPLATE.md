@@ -7,6 +7,13 @@ Please include a summary of the change and which issue is fixed. Also include re
 - Scope / owning surface:
 - Dependencies or overlapping PRs: None
 
+### AI Disclosure
+
+> Required by [`AI_POLICY.md`](../../AI_POLICY.md) — if any part of this PR was created or assisted by AI (tools, agents, or assistants), name the tool(s) here and describe the extent. PRs that reference an accepted issue and fully verify AI-assisted work are welcome; undisclosed AI usage will be closed.
+
+- [ ] No AI assistance was used.
+- [ ] AI assistance was used and disclosed below: <tool(s) and extent>.
+
 <details>
 <summary>Checklist</summary>
 

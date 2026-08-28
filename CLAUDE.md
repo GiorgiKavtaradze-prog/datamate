@@ -189,6 +189,17 @@ cd packages/db && DATABASE_URL="postgres://datamate:datamate_dev_password@localh
 - **Scope maps must match.** If `RESOURCE_SCOPE_OVERRIDES` changes in `packages/api-keys/src/scopes.ts`, the integration tests in `link-handlers.test.ts` and `with-workspace.test.ts` must be updated to match. The link resource is mapped there (`read:links` for read, `write:links` for create/update/delete), as is the flag resource (`manage:flags` for create/update/delete). Both are enforced solely by `withWorkspace`; there are no separate pre-check layers. New resources also need role grants in `packages/auth/src/permissions.ts` (statement plus each role).
 - **Identity columns are governed by `packages/db/src/clickhouse/identity.ts`.** `PROFILE_ID_TABLES` lists every ClickHouse table carrying `profile_id`; `identity.test.ts` enforces that each entry has a CREATE column, an idempotent migration, and `profile_id` + `anonymous_id` in the agent SQL allowlist. Adding `profile_id` to a table means adding it there and following the failing test. Query-side identity stitching must use `EVENTS_VISITOR_KEY` / `CUSTOM_EVENTS_VISITOR_KEY` / `visitorMatch()` from that module — never inline the expression. Profile write semantics (trait splitting, upserts) live in `@datamate/services/identity`; `profile_id` values are customer-supplied and are never salted, unlike `anonymous_id`.
 
+## Quick Debugging Recipes
+
+| Symptom | First move |
+| --- | --- |
+| Dashboard gets `UNAUTHORIZED`/`FORBIDDEN` from RPC | Confirm the session cookie and `BETTER_AUTH_URL`; check the ORPC link in `apps/dashboard/lib/orpc.ts` and the active organization's role scopes. |
+| Browser events never reach the dashboard | Inspect `window.datamate`/`window.db`, confirm requests reach `basket.datamate.cc`, then check basket logs and `analytics.events` in ClickHouse. |
+| `check-types` passes locally but CI fails | Check each workspace's own `package.json` — hoisting hides missing explicit deps. Add with `bun add` inside the owning package. |
+| Cached data looks stale | `@datamate/cache` invalidates on Drizzle mutations; if you wrote around Drizzle, invalidate the table dependency/tag manually. |
+| ClickHouse `ch:verify` reports drift | Reference `.sql` files in `packages/db/src/clickhouse/schema` are source of truth; write a forward-only migration instead of editing shipped tables. |
+| Agent SQL rejects a query | Agent SQL is `analytics.*` + required tenant filter via `validateAgentSQL`/`requiresTenantFilter` — check the builder, not just the prompt. |
+
 ## AI Policy Note
 
 The project has a formal AI usage policy (`AI_POLICY.md`). For contributions: all AI usage must be disclosed, PRs must reference an accepted issue, and all AI-generated code must be fully human-verified. Maintainers are exempt and may use AI at their discretion.
