@@ -7,6 +7,7 @@ node_modules
 
 admin
 
+
 # Local env files
 .env
 .mcp.json

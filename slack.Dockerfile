@@ -45,3 +45,4 @@ EXPOSE 3010
 
 ENTRYPOINT []
 CMD ["./server"]
+

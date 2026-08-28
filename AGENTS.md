@@ -222,3 +222,4 @@ A slice is done when all of these hold — not when the code merely compiles:
 ## AI Policy Note
 
 The project has a formal AI usage policy (`AI_POLICY.md`). For contributions: all AI usage must be disclosed, PRs must reference an accepted issue, and all AI-generated code must be fully human-verified. Maintainers are exempt and may use AI at their discretion.
+

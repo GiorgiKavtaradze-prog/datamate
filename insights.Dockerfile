@@ -48,3 +48,4 @@ USER 1000:1000
 
 ENTRYPOINT []
 CMD ["./server"]
+

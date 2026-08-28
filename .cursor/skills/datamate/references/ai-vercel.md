@@ -34,16 +34,16 @@ const { text } = await generateText({
 
 ### datamateLLM Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `apiKey` | `string` | `DATAMATE_API_KEY` env | Your API key |
-| `apiUrl` | `string` | `https://basket.datamate.cc/llm` | Custom API endpoint |
-| `transport` | `Transport` | HTTP | Custom transport function |
-| `computeCosts` | `boolean` | `true` | Calculate token costs |
-| `privacyMode` | `boolean` | `false` | Exclude input/output content |
-| `maxContentSize` | `number` | `1048576` | Max content size in bytes |
-| `onSuccess` | `(call: AICall) => void` | — | Success callback |
-| `onError` | `(call: AICall) => void` | — | Error callback |
+| Option           | Type                     | Default                          | Description                  |
+| ---------------- | ------------------------ | -------------------------------- | ---------------------------- |
+| `apiKey`         | `string`                 | `DATAMATE_API_KEY` env           | Your API key                 |
+| `apiUrl`         | `string`                 | `https://basket.datamate.cc/llm` | Custom API endpoint          |
+| `transport`      | `Transport`              | HTTP                             | Custom transport function    |
+| `computeCosts`   | `boolean`                | `true`                           | Calculate token costs        |
+| `privacyMode`    | `boolean`                | `false`                          | Exclude input/output content |
+| `maxContentSize` | `number`                 | `1048576`                        | Max content size in bytes    |
+| `onSuccess`      | `(call: AICall) => void` | —                                | Success callback             |
+| `onError`        | `(call: AICall) => void` | —                                | Error callback               |
 
 ## Track Options
 
@@ -60,14 +60,14 @@ const model = track(openai("gpt-4o"), {
 });
 ```
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `traceId` | `string` | Custom trace ID for correlation |
-| `computeCosts` | `boolean` | Override cost calculation |
-| `privacyMode` | `boolean` | Override privacy mode |
-| `transport` | `Transport` | Override transport |
-| `onSuccess` | `(call: AICall) => void` | Success callback |
-| `onError` | `(call: AICall) => void` | Error callback |
+| Option         | Type                     | Description                     |
+| -------------- | ------------------------ | ------------------------------- |
+| `traceId`      | `string`                 | Custom trace ID for correlation |
+| `computeCosts` | `boolean`                | Override cost calculation       |
+| `privacyMode`  | `boolean`                | Override privacy mode           |
+| `transport`    | `Transport`              | Override transport              |
+| `onSuccess`    | `(call: AICall) => void` | Success callback                |
+| `onError`      | `(call: AICall) => void` | Error callback                  |
 
 ## Privacy Mode
 
@@ -94,8 +94,8 @@ interface AICall {
   model: string;
   provider: string;
   finishReason?: string;
-  input: Message[];      // (empty if privacyMode)
-  output: Message[];     // (empty if privacyMode)
+  input: Message[]; // (empty if privacyMode)
+  output: Message[]; // (empty if privacyMode)
   usage: TokenUsage;
   cost: TokenCost;
   tools: ToolCallInfo;
@@ -123,9 +123,9 @@ interface TokenUsage {
 
 ```typescript
 interface TokenCost {
-  inputCost?: number;    // Cost in USD
-  outputCost?: number;   // Cost in USD
-  totalCost?: number;    // Total cost in USD
+  inputCost?: number; // Cost in USD
+  outputCost?: number; // Cost in USD
+  totalCost?: number; // Total cost in USD
 }
 ```
 
@@ -285,9 +285,9 @@ const mistralModel = track(mistral("mistral-large"));
 ```typescript
 function handleRequest(req) {
   const traceId = req.headers["x-trace-id"] || generateTraceId();
-  
+
   const model = track(openai("gpt-4o"), { traceId });
-  
+
   // All LLM calls in this request share the trace ID
 }
 ```

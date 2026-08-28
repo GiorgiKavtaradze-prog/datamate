@@ -16,10 +16,9 @@ We will acknowledge your report and respond as quickly as possible, keep you inf
 
 Only the latest major release receives security updates. Older versions may no longer receive fixes.
 
-| Version | Supported |
-| --- | --- |
-| Latest release on `main` | ✅ |
-| Older releases | ❌ |
+| Version                  | Supported |
+| ------------------------ | --------- |
+| Latest release on `main` | ✅        |
+| Older releases           | ❌        |
 
 Thank you for helping keep Datamate and its users safe.
- 
