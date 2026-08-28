@@ -2,6 +2,32 @@
 
 [`SPEC.md`](./SPEC.md) is the product contract. This is direction, not a promise.
 
+## How to read this roadmap
+
+| Horizon                | Meaning                            | Commitment                                          |
+| ---------------------- | ---------------------------------- | --------------------------------------------------- |
+| **Shipped foundation** | Live in production today           | Contract — see [`SPEC.md`](./SPEC.md)               |
+| **Now**                | Actively being built               | High — this is funded work                          |
+| **Next**               | Committed direction once Now lands | Medium — sequencing may shift                       |
+| **Later**              | Exploration with clear intent      | Low — the problems are real, the solutions are open |
+| **Not building**       | Explicit non-goals                 | Final — please don't open PRs for these             |
+
+## How to influence this roadmap
+
+The path from idea to shipped feature is deliberate:
+
+```mermaid
+flowchart LR
+    Idea["Discussion: describe the problem you are hitting"] --> Accepted{"Maintainers accept it?"}
+    Accepted -->|"yes"| Issue["Accepted issue — the entry ticket for any PR"]
+    Accepted -->|"not yet"| Park["Park it — revisit with new evidence"]
+    Issue --> Branch["One branch from current staging (CONTRIBUTING.md)"]
+    Branch --> PR["One PR with conventional commits"]
+    PR --> Ship["Shipped — the horizon moves"]
+```
+
+Anything that contradicts **Not building** will be closed with a pointer to this file. AI-created PRs additionally require the accepted-issue reference per [`AI_POLICY.md`](AI_POLICY.md).
+
 ## Shipped foundation
 
 - One signal enters one intelligence agent with shared analytics and read-only code/deploy tools; one `act | ask | watch | resolve` outcome is saved in the existing observation timeline. The old bounded classifier, repair lifecycle, duplicate evidence stack, and synthetic evaluator are gone.

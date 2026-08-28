@@ -189,6 +189,34 @@ cd packages/db && DATABASE_URL="postgres://datamate:datamate_dev_password@localh
 - **Scope maps must match.** If `RESOURCE_SCOPE_OVERRIDES` changes in `packages/api-keys/src/scopes.ts`, the integration tests in `link-handlers.test.ts` and `with-workspace.test.ts` must be updated to match. The link resource is mapped there (`read:links` for read, `write:links` for create/update/delete), as is the flag resource (`manage:flags` for create/update/delete). Both are enforced solely by `withWorkspace`; there are no separate pre-check layers. New resources also need role grants in `packages/auth/src/permissions.ts` (statement plus each role).
 - **Identity columns are governed by `packages/db/src/clickhouse/identity.ts`.** `PROFILE_ID_TABLES` lists every ClickHouse table carrying `profile_id`; `identity.test.ts` enforces that each entry has a CREATE column, an idempotent migration, and `profile_id` + `anonymous_id` in the agent SQL allowlist. Adding `profile_id` to a table means adding it there and following the failing test. Query-side identity stitching must use `EVENTS_VISITOR_KEY` / `CUSTOM_EVENTS_VISITOR_KEY` / `visitorMatch()` from that module — never inline the expression. Profile write semantics (trait splitting, upserts) live in `@datamate/services/identity`; `profile_id` values are customer-supplied and are never salted, unlike `anonymous_id`.
 
+## Task Playbooks
+
+Route every task through the layer that owns it — the fastest path is the one that respects the contract:
+
+| Task                        | Path                                                                                                                                                    | Verify with                                                              |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
+| Add an RPC endpoint         | Define in `packages/rpc` (Zod in/out; mutations on `trackedProcedure`/`auditedSessionProcedure`) → implement in `apps/api` → consume via `orpc.<router>.<name>` | `bun run check-types` — the typed client picks it up automatically; colocated test |
+| Change the PostgreSQL schema | Edit the Drizzle schema in `packages/db` → `bun run db:push` (dev) or `db:migrate` (prod)                                                               | `bun run db:studio`; dependent queries still typecheck                    |
+| Change the ClickHouse schema | Edit the reference `.sql` in `packages/db/src/clickhouse/schema` → forward-only migration for shipped tables → `bun run generate-db`                     | `bun run ch:verify` reports no drift                                       |
+| Add `profile_id` to a table | Add it to `PROFILE_ID_TABLES` in `packages/db/src/clickhouse/identity.ts` and follow the failing `identity.test.ts`                                      | Identity test suite green                                                  |
+| Add an API-key resource     | Map scopes in `packages/api-keys/src/scopes.ts` → grant roles in `packages/auth/src/permissions.ts` → update the scope-map integration tests             | `link-handlers.test.ts` + `with-workspace.test.ts`                         |
+| Add a dashboard picker      | `DropdownMenu` for menus; `Select` only for an explicit select/combobox pattern; `Field` for labels, errors, ids                                         | `bun run lint` enforces the design-system policy                           |
+| Touch the SDK or tracker    | `bun run sdk:build` before dev; dist-only packages build before E2E                                                                                      | Dev overlay shows fresh queue & IDs                                        |
+| Debug a CI-only failure     | Compare env handling (Turbo strict env mode, literal `"true"` booleans, `bash -c` not `bash -lc`)                                                        | Same slice green in CI                                                     |
+
+## Definition of Done
+
+A slice is done when all of these hold — not when the code merely compiles:
+
+- [ ] `bun run lint`, `bun run check-types`, and the relevant `bun run test` suites pass.
+- [ ] Tenant isolation is enforced in the shared layer — never from client-supplied IDs alone.
+- [ ] New workspace dependencies are declared in the owning package's `package.json`.
+- [ ] Feature UI consumes `@datamate/ui` (or carries a specific `policy-ignore` reason).
+- [ ] Error paths preserve valid 4xx statuses; lifecycle code fails safe (non-zero exit, shutdown timeout).
+- [ ] Test fixtures are typed against their source types (`Context["apiKey"]`, `User`) so schema drift breaks compilation.
+- [ ] `git diff --stat` tells one story; the commit follows `<type>(<scope>): <description>`.
+- [ ] A Playwright spec covers any changed browser journey (E2E booleans as literal `"true"`/`"false"`).
+
 ## Quick Debugging Recipes
 
 | Symptom | First move |

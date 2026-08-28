@@ -141,6 +141,35 @@ For parallel work, use one worktree per active branch, and never let two people 
 
 Use `<type>(<scope>): <description>` — e.g. `feat(dashboard): add export button`, `fix(api): handle null session`. Common scopes: `dashboard`, `api`, `rpc`, `basket`, `docs`, `db`, `sdk`, `tracker`, `deps`, `ci`. Split commits by intent (feature / bug fix / refactor / style copy / migration slice); keep unrelated surfaces in separate commits even when edited in the same session.
 
+## Review & Merge
+
+Every PR walks the same lifecycle — keep it moving by keeping it small:
+
+```mermaid
+stateDiagram-v2
+    [*] --> Draft: first commit pushed against staging
+    Draft --> Ready: scope + dependencies stated in the description
+    Ready --> InReview: a maintainer picks it up
+    InReview --> ChangesRequested
+    ChangesRequested --> Ready: rebase on current staging + fresh push
+    InReview --> Approved
+    Approved --> Merged: squash-merge with a conventional title
+    Merged --> [*]: branch auto-deleted, worktree removed
+```
+
+**Reviewer lens** — expect every PR to be checked against:
+
+| Lens         | Question                                                                              |
+| ------------ | -------------------------------------------------------------------------------------- |
+| Slice        | Does `git diff --stat` tell one story? Unrelated cleanup belongs in a separate PR.     |
+| Contract     | Do RPC changes keep `packages/rpc` as the single source of truth?                      |
+| Isolation    | Is tenant scope enforced in the shared layer, never from client-supplied IDs alone?    |
+| Tests        | Are unit/integration tests colocated, with E2E added for real browser journeys?        |
+| UI policy    | Does feature code consume `@datamate/ui` instead of hand-rolled controls?              |
+| Hygiene      | No secrets staged, no hand-written version ranges, changeset for published packages?   |
+
+Small, single-intent PRs get the fastest reviews; mixed-intent PRs are sent back to be split.
+
 ## End-to-End: Shipping a Feature Slice
 
 A typical read→write feature crosses all three layers. Concretely:
