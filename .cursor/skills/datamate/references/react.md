@@ -61,15 +61,15 @@ All props from `DatamateConfig` are supported. See [Core SDK Reference](./core.m
 
 Key props:
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `clientId` | `string` | Auto-detect | Your project client ID |
-| `disabled` | `boolean` | `false` | Disable tracking |
-| `trackWebVitals` | `boolean` | `false` | Track Web Vitals |
-| `trackErrors` | `boolean` | `false` | Track JS errors |
-| `trackPerformance` | `boolean` | `true` | Track performance |
-| `trackOutgoingLinks` | `boolean` | `false` | Track outgoing clicks |
-| `debug` | `boolean` | `false` | Enable debug logging |
+| Prop                 | Type      | Default     | Description            |
+| -------------------- | --------- | ----------- | ---------------------- |
+| `clientId`           | `string`  | Auto-detect | Your project client ID |
+| `disabled`           | `boolean` | `false`     | Disable tracking       |
+| `trackWebVitals`     | `boolean` | `false`     | Track Web Vitals       |
+| `trackErrors`        | `boolean` | `false`     | Track JS errors        |
+| `trackPerformance`   | `boolean` | `true`      | Track performance      |
+| `trackOutgoingLinks` | `boolean` | `false`     | Track outgoing clicks  |
+| `debug`              | `boolean` | `false`     | Enable debug logging   |
 
 ### Auto-detection
 
@@ -103,10 +103,7 @@ import {
 ### Disable in Development
 
 ```tsx
-<Datamate
-  disabled={process.env.NODE_ENV === "development"}
-  clientId="..."
-/>
+<Datamate disabled={process.env.NODE_ENV === "development"} clientId="..." />
 ```
 
 ### With All Tracking Features
@@ -137,12 +134,7 @@ import {
 ### With Batching Configuration
 
 ```tsx
-<Datamate
-  clientId="..."
-  enableBatching
-  batchSize={20}
-  batchTimeout={5000}
-/>
+<Datamate clientId="..." enableBatching batchSize={20} batchTimeout={5000} />
 ```
 
 ### With Sampling
@@ -164,7 +156,7 @@ import { track } from "@datamate/sdk/react";
 function PurchaseButton({ product }) {
   const handlePurchase = async () => {
     await completePurchase(product);
-    
+
     track("purchase", {
       product_id: product.id,
       product_name: product.name,

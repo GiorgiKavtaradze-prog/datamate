@@ -24,14 +24,14 @@ Datamate has clear, deliberate rules for how artificial intelligence may be used
 
 ## Quick Reference
 
-| Situation                                    | Allowed?                          | What's required                                                    |
-| --------------------------------------------- | ---------------------------------- | -------------------------------------------------------------------- |
-| You wrote the code, AI helped polish it        | ✅                                 | Disclose the tool(s) and the extent in the PR                        |
-| AI produced a full PR                          | ✅ only with an accepted issue      | Reference the issue, disclose, human-verify everything before submitting |
-| Drive-by AI PR without a referenced issue      | ❌                                 | It will be closed                                                    |
-| AI-written issue or discussion post            | ✅                                 | A human must review **and edit** it before posting                   |
-| AI-generated images, video, or audio           | ❌                                 | Text and code are the only accepted AI media                          |
-| Undisclosed AI use discovered later            | ❌                                 | PR is closed; repeated behavior risks a ban                           |
+| Situation                                 | Allowed?                       | What's required                                                          |
+| ----------------------------------------- | ------------------------------ | ------------------------------------------------------------------------ |
+| You wrote the code, AI helped polish it   | ✅                             | Disclose the tool(s) and the extent in the PR                            |
+| AI produced a full PR                     | ✅ only with an accepted issue | Reference the issue, disclose, human-verify everything before submitting |
+| Drive-by AI PR without a referenced issue | ❌                             | It will be closed                                                        |
+| AI-written issue or discussion post       | ✅                             | A human must review **and edit** it before posting                       |
+| AI-generated images, video, or audio      | ❌                             | Text and code are the only accepted AI media                             |
+| Undisclosed AI use discovered later       | ❌                             | PR is closed; repeated behavior risks a ban                              |
 
 ## Disclosure Template
 
@@ -39,6 +39,7 @@ Copy this into your PR description — it takes ten seconds and satisfies rule 1
 
 ```markdown
 ## AI disclosure
+
 - **Tools used:** Claude Code 2.x (agentic coding), ChatGPT (research only)
 - **Extent:** boilerplate and test scaffolding were AI-drafted; all logic, review, and verification were human
 - **Verification:** `bun run lint`, `bun run check-types`, and `bun run test` pass; feature manually exercised in the dashboard at `<URL / steps>`

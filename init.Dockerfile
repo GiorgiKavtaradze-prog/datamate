@@ -11,3 +11,4 @@ RUN bun install --ignore-scripts
 ENV NODE_ENV=production
 
 CMD ["sh", "-c", "bun run --cwd packages/db db:push && bun --cwd packages/db src/clickhouse/setup.ts"]
+

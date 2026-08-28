@@ -1,5 +1,3 @@
-#!/usr/bin/env bun
-
 import { copyFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { $ } from "bun";

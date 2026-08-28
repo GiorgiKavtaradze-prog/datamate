@@ -33,48 +33,48 @@ import {
 
 ### DatamateConfig
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `clientId` | `string` | Auto-detect | Project client ID (auto-detects from `NEXT_PUBLIC_DATAMATE_CLIENT_ID`) |
-| `clientSecret` | `string` | — | Server-side only secret |
-| `apiUrl` | `string` | `https://basket.datamate.cc` | Custom API endpoint |
-| `scriptUrl` | `string` | `https://cdn.datamate.cc/datamate.js` | Custom script URL |
-| `disabled` | `boolean` | `false` | Disable all tracking |
-| `debug` | `boolean` | `false` | Enable debug logging |
+| Option         | Type      | Default                               | Description                                                            |
+| -------------- | --------- | ------------------------------------- | ---------------------------------------------------------------------- |
+| `clientId`     | `string`  | Auto-detect                           | Project client ID (auto-detects from `NEXT_PUBLIC_DATAMATE_CLIENT_ID`) |
+| `clientSecret` | `string`  | —                                     | Server-side only secret                                                |
+| `apiUrl`       | `string`  | `https://basket.datamate.cc`          | Custom API endpoint                                                    |
+| `scriptUrl`    | `string`  | `https://cdn.datamate.cc/datamate.js` | Custom script URL                                                      |
+| `disabled`     | `boolean` | `false`                               | Disable all tracking                                                   |
+| `debug`        | `boolean` | `false`                               | Enable debug logging                                                   |
 
 ### Tracking Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `trackHashChanges` | `boolean` | `false` | Track URL hash changes |
-| `trackAttributes` | `boolean` | `false` | Track data-* attributes |
+| Option               | Type      | Default | Description                |
+| -------------------- | --------- | ------- | -------------------------- |
+| `trackHashChanges`   | `boolean` | `false` | Track URL hash changes     |
+| `trackAttributes`    | `boolean` | `false` | Track data-\* attributes   |
 | `trackOutgoingLinks` | `boolean` | `false` | Track outgoing link clicks |
-| `trackInteractions` | `boolean` | `false` | Track user interactions |
-| `trackPerformance` | `boolean` | `true` | Track performance metrics |
-| `trackWebVitals` | `boolean` | `false` | Track Web Vitals |
-| `trackErrors` | `boolean` | `false` | Track JavaScript errors |
+| `trackInteractions`  | `boolean` | `false` | Track user interactions    |
+| `trackPerformance`   | `boolean` | `true`  | Track performance metrics  |
+| `trackWebVitals`     | `boolean` | `false` | Track Web Vitals           |
+| `trackErrors`        | `boolean` | `false` | Track JavaScript errors    |
 
 ### Optimization Options
 
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| `samplingRate` | `number` | `1.0` | Sampling rate (0.0-1.0) |
-| `enableRetries` | `boolean` | `false` | Retry failed requests |
-| `maxRetries` | `number` | `3` | Max retry attempts |
-| `initialRetryDelay` | `number` | `500` | Initial retry delay (ms) |
-| `enableBatching` | `boolean` | `true` | Enable event batching |
-| `batchSize` | `number` | `10` | Events per batch (1-50) |
-| `batchTimeout` | `number` | `2000` | Batch timeout (ms) |
-| `ignoreBotDetection` | `boolean` | `false` | Track bots |
-| `usePixel` | `boolean` | `false` | Use pixel tracking |
+| Option               | Type      | Default | Description              |
+| -------------------- | --------- | ------- | ------------------------ |
+| `samplingRate`       | `number`  | `1.0`   | Sampling rate (0.0-1.0)  |
+| `enableRetries`      | `boolean` | `false` | Retry failed requests    |
+| `maxRetries`         | `number`  | `3`     | Max retry attempts       |
+| `initialRetryDelay`  | `number`  | `500`   | Initial retry delay (ms) |
+| `enableBatching`     | `boolean` | `true`  | Enable event batching    |
+| `batchSize`          | `number`  | `10`    | Events per batch (1-50)  |
+| `batchTimeout`       | `number`  | `2000`  | Batch timeout (ms)       |
+| `ignoreBotDetection` | `boolean` | `false` | Track bots               |
+| `usePixel`           | `boolean` | `false` | Use pixel tracking       |
 
 ### Filtering Options
 
-| Option | Type | Description |
-|--------|------|-------------|
-| `filter` | `(event) => boolean` | Filter function to skip events |
-| `skipPatterns` | `string[]` | Glob patterns to skip tracking |
-| `maskPatterns` | `string[]` | Glob patterns to mask paths |
+| Option         | Type                 | Description                    |
+| -------------- | -------------------- | ------------------------------ |
+| `filter`       | `(event) => boolean` | Filter function to skip events |
+| `skipPatterns` | `string[]`           | Glob patterns to skip tracking |
+| `maskPatterns` | `string[]`           | Glob patterns to mask paths    |
 
 ## Global Tracker
 
@@ -104,15 +104,15 @@ window.datamate.flush();
 
 ### Pre-defined Events
 
-| Event | Properties |
-|-------|------------|
-| `screen_view` | `page_count`, `time_on_page`, `scroll_depth`, `interaction_count` |
-| `page_exit` | `time_on_page`, `scroll_depth`, `interaction_count`, `page_count` |
-| `button_click` | `button_text`, `button_type`, `button_id`, `element_class` |
-| `link_out` | `href`, `text`, `target_domain` |
-| `form_submit` | `form_id`, `form_name`, `form_type`, `success` |
-| `web_vitals` | `fcp`, `lcp`, `cls`, `fid`, `ttfb`, `load_time` |
-| `error` | `message`, `filename`, `lineno`, `colno`, `stack` |
+| Event          | Properties                                                        |
+| -------------- | ----------------------------------------------------------------- |
+| `screen_view`  | `page_count`, `time_on_page`, `scroll_depth`, `interaction_count` |
+| `page_exit`    | `time_on_page`, `scroll_depth`, `interaction_count`, `page_count` |
+| `button_click` | `button_text`, `button_type`, `button_id`, `element_class`        |
+| `link_out`     | `href`, `text`, `target_domain`                                   |
+| `form_submit`  | `form_id`, `form_name`, `form_type`, `success`                    |
+| `web_vitals`   | `fcp`, `lcp`, `cls`, `fid`, `ttfb`, `load_time`                   |
+| `error`        | `message`, `filename`, `lineno`, `colno`, `stack`                 |
 
 ### Base Event Properties
 

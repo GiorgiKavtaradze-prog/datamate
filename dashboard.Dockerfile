@@ -64,3 +64,4 @@ USER nextjs
 EXPOSE 3000
 
 CMD ["node", "apps/dashboard/server.js"]
+
