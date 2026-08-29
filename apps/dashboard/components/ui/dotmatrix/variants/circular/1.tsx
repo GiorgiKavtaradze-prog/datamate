@@ -24,15 +24,19 @@ export function DotmCircular1({
   ...rest
 }: DotmCircular1Props) {
   const reducedMotion = usePrefersReducedMotion();
-  const { phase: matrixPhase, onMouseEnter, onMouseLeave } = useDotMatrixPhases({
+  const {
+    phase: matrixPhase,
+    onMouseEnter,
+    onMouseLeave,
+  } = useDotMatrixPhases({
     animated: Boolean(animated && !reducedMotion),
     hoverAnimated: Boolean(hoverAnimated && !reducedMotion),
-    speed
+    speed,
   });
   const animPhase = useCyclePhase({
     active: !reducedMotion && matrixPhase !== "idle",
     cycleMsBase: 1700,
-    speed
+    speed,
   });
 
   const animationResolver = useMemo<DotAnimationResolver>(() => {
@@ -46,7 +50,9 @@ export function DotmCircular1({
       const phaseOffset = t * HELIX_LOOP_RADIANS + diagonalAxis * 0.82;
       const strandPerpendicular = Math.round(2 * Math.sin(phaseOffset));
       const cellPerpendicular = col - row;
-      const distanceFromStrand = Math.abs(cellPerpendicular - strandPerpendicular);
+      const distanceFromStrand = Math.abs(
+        cellPerpendicular - strandPerpendicular,
+      );
 
       if (distanceFromStrand === 0) {
         return { style: { opacity: STRAND_OPACITY } };

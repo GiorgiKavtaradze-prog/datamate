@@ -32,9 +32,7 @@ export function SkeletonChart({ height = 550, className }: SkeletonChartProps) {
 								/>
 							))}
 						</div>
-
 						<Skeleton className="absolute right-8 bottom-16 left-16 h-px bg-foreground/10" />
-
 						<div className="absolute right-8 bottom-10 left-16 flex justify-between">
 							{Array.from({ length: 7 }).map((_, i) => (
 								<Skeleton
@@ -43,9 +41,7 @@ export function SkeletonChart({ height = 550, className }: SkeletonChartProps) {
 								/>
 							))}
 						</div>
-
 						<Skeleton className="absolute top-8 bottom-16 left-16 w-px bg-foreground/10" />
-
 						<div className="absolute top-8 bottom-20 left-4 flex flex-col justify-between">
 							{Array.from({ length: 4 }).map((_, i) => (
 								<Skeleton

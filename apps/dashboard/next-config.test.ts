@@ -2,73 +2,73 @@ import { describe, expect, it } from "bun:test";
 import nextConfig from "./next.config";
 
 const officialDemoFrameAncestors = [
-	"https://www.datamate.cc",
-	"https://datamate.cc",
-	"https://app.datamate.cc",
-	"https://preview.datamate.cc",
-	"https://staging.datamate.cc",
+  "https://www.datamate.cc",
+  "https://datamate.cc",
+  "https://app.datamate.cc",
+  "https://preview.datamate.cc",
+  "https://staging.datamate.cc",
 ] as const;
 
 async function getCspHeader(source: string): Promise<string> {
-	const headers = await nextConfig.headers?.();
-	const routeHeaders = headers?.find(
-		(route) => route.source === source
-	)?.headers;
-	const csp = routeHeaders?.find(
-		(header) => header.key === "Content-Security-Policy"
-	)?.value;
+  const headers = await nextConfig.headers?.();
+  const routeHeaders = headers?.find(
+    (route) => route.source === source,
+  )?.headers;
+  const csp = routeHeaders?.find(
+    (header) => header.key === "Content-Security-Policy",
+  )?.value;
 
-	if (!csp) {
-		throw new Error(`Missing CSP header for ${source}`);
-	}
+  if (!csp) {
+    throw new Error(`Missing CSP header for ${source}`);
+  }
 
-	return csp;
+  return csp;
 }
 
 async function withNodeEnv<T>(
-	value: string,
-	callback: () => Promise<T>
+  value: string,
+  callback: () => Promise<T>,
 ): Promise<T> {
-	const original = process.env.NODE_ENV;
-	process.env.NODE_ENV = value;
-	try {
-		return await callback();
-	} finally {
-		if (original === undefined) {
-			delete process.env.NODE_ENV;
-		} else {
-			process.env.NODE_ENV = original;
-		}
-	}
+  const original = process.env.NODE_ENV;
+  process.env.NODE_ENV = value;
+  try {
+    return await callback();
+  } finally {
+    if (original === undefined) {
+      delete process.env.NODE_ENV;
+    } else {
+      process.env.NODE_ENV = original;
+    }
+  }
 }
 
 describe("dashboard next config", () => {
-	it("allows official docs and app origins to frame demo routes", async () => {
-		await withNodeEnv("production", async () => {
-			const csp = await getCspHeader("/demo/:path*");
+  it("allows official docs and app origins to frame demo routes", async () => {
+    await withNodeEnv("production", async () => {
+      const csp = await getCspHeader("/demo/:path*");
 
-			expect(csp).toContain(
-				`frame-ancestors 'self' ${officialDemoFrameAncestors.join(" ")}`
-			);
-			expect(csp).not.toContain("ws://");
-		});
-	});
+      expect(csp).toContain(
+        `frame-ancestors 'self' ${officialDemoFrameAncestors.join(" ")}`,
+      );
+      expect(csp).not.toContain("ws://");
+    });
+  });
 
-	it("applies the same frame ancestor policy to public dashboard routes", async () => {
-		await withNodeEnv("production", async () => {
-			const csp = await getCspHeader("/public/:path*");
+  it("applies the same frame ancestor policy to public dashboard routes", async () => {
+    await withNodeEnv("production", async () => {
+      const csp = await getCspHeader("/public/:path*");
 
-			expect(csp).toContain("https://www.datamate.cc");
-			expect(csp).toContain("https://app.datamate.cc");
-		});
-	});
+      expect(csp).toContain("https://www.datamate.cc");
+      expect(csp).toContain("https://app.datamate.cc");
+    });
+  });
 
-	it("allows the OpenAI Ads measurement pixel on app routes", async () => {
-		await withNodeEnv("production", async () => {
-			const csp = await getCspHeader("/((?!demo|public).*)");
+  it("allows the OpenAI Ads measurement pixel on app routes", async () => {
+    await withNodeEnv("production", async () => {
+      const csp = await getCspHeader("/((?!demo|public).*)");
 
-			expect(csp).toContain("https://bzrcdn.openai.com");
-			expect(csp).toContain("https://bzr.openai.com");
-		});
-	});
+      expect(csp).toContain("https://bzrcdn.openai.com");
+      expect(csp).toContain("https://bzr.openai.com");
+    });
+  });
 });
