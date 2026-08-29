@@ -23,7 +23,7 @@ const RING_PATH: readonly number[] = [
   rowMajorIndex(4, 1),
   rowMajorIndex(3, 0),
   rowMajorIndex(2, 0),
-  rowMajorIndex(1, 0)
+  rowMajorIndex(1, 0),
 ];
 
 const LOOP_LEN = RING_PATH.length;
@@ -36,10 +36,14 @@ export function DotmCircular2({
   ...rest
 }: DotmCircular2Props) {
   const reducedMotion = usePrefersReducedMotion();
-  const { phase: matrixPhase, onMouseEnter, onMouseLeave } = useDotMatrixPhases({
+  const {
+    phase: matrixPhase,
+    onMouseEnter,
+    onMouseLeave,
+  } = useDotMatrixPhases({
     animated: Boolean(animated && !reducedMotion),
     hoverAnimated: Boolean(hoverAnimated && !reducedMotion),
-    speed
+    speed,
   });
   const resolver: DotAnimationResolver = ({ index, row, col, phase }) => {
     if (!isWithinCircularMask(row, col)) {
@@ -48,7 +52,9 @@ export function DotmCircular2({
 
     const onRing = RING_PATH.indexOf(index);
     if (onRing === -1) {
-      return { style: { opacity: row === 2 && col === 2 ? 0.18 : BASE_OPACITY } };
+      return {
+        style: { opacity: row === 2 && col === 2 ? 0.18 : BASE_OPACITY },
+      };
     }
 
     if (reducedMotion || phase === "idle") {
@@ -57,7 +63,7 @@ export function DotmCircular2({
 
     return {
       className: "dmx-circular2-ring",
-      style: { "--dmx-ring-order": onRing } as CSSProperties
+      style: { "--dmx-ring-order": onRing } as CSSProperties,
     };
   };
 
