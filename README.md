@@ -7,53 +7,64 @@
 ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝
 ```
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
-[![Next.js](https://img.shields.io/badge/Next.js-16.2-black.svg)](https://nextjs.org/)
-[![React](https://img.shields.io/badge/React-19.2-blue.svg)](https://reactjs.org/)
-[![Turborepo](https://img.shields.io/badge/Turborepo-2.9-blue.svg)](https://turbo.build/repo)
-[![Bun](https://img.shields.io/badge/Bun-1.3-blue.svg)](https://bun.sh/)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.1-blue.svg)](https://tailwindcss.com/)
+### _Privacy-First, Open-Source Analytics & Autonomous Product Intelligence_
 
-[![Code Coverage](https://img.shields.io/badge/coverage-85%25-green.svg)](https://github.com/datamate-analytics/Datamate/actions/workflows/coverage.yml)
-[![Security Scan](https://img.shields.io/badge/security-A%2B-green.svg)](https://github.com/datamate-analytics/Datamate/actions/workflows/security.yml)
-[![Dependency Status](https://img.shields.io/badge/dependencies-up%20to%20date-green.svg)](https://github.com/datamate-analytics/Datamate/actions/workflows/dependencies.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Bun](https://img.shields.io/badge/Bun-1.3-F9F1E1?style=for-the-badge&logo=bun&logoColor=black)](https://bun.sh/)
+[![Next.js](https://img.shields.io/badge/Next.js-16-000000?style=for-the-badge&logo=nextdotjs&logoColor=white)](https://nextjs.org/)
+[![React](https://img.shields.io/badge/React-19-61DAFB?style=for-the-badge&logo=react&logoColor=black)](https://reactjs.org/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)](https://tailwindcss.com/)
+[![Elysia.js](https://img.shields.io/badge/Elysia.js-1.2-violet?style=for-the-badge)](https://elysiajs.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-17-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![ClickHouse](https://img.shields.io/badge/ClickHouse-25.5-FFCC00?style=for-the-badge&logo=clickhouse&logoColor=black)](https://clickhouse.com/)
+[![Redis](https://img.shields.io/badge/Redis-7.4-DC382D?style=for-the-badge&logo=redis&logoColor=white)](https://redis.io/)
 
-[<img alt="Vercel OSS Program" src="https://vercel.com/oss/program-badge.svg" />](https://vercel.com/oss)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg?style=flat-square&logo=github-actions)](https://github.com/datamate-analytics/Datamate/actions)
+[![Coverage](https://img.shields.io/badge/coverage-85%25-brightgreen.svg?style=flat-square&logo=codecov)](https://github.com/datamate-analytics/Datamate/actions)
+[![Security Scan](https://img.shields.io/badge/security-A%2B-green.svg?style=flat-square&logo=snyk)](SECURITY.md)
+[![Vercel OSS Program](https://img.shields.io/badge/Vercel-OSS_Program-black.svg?style=flat-square&logo=vercel)](https://vercel.com/oss)
+[![Open Source](https://img.shields.io/badge/open_source-2026-blue.svg?style=flat-square)](LICENSE)
 
-[![Open Source Since 2026](https://img.shields.io/badge/open_source_since-2026-blue.svg)](LICENSE)
+[📖 **Documentation**](apps/docs/content/docs/index.mdx) • [📦 **SDK Guide**](packages/sdk/README.md) • [💬 **Discord Community**](https://discord.gg/JTk7a38tCZ) • [🐦 **Twitter / X**](https://twitter.com/trydatamate) • [🐛 **Report Issue**](https://github.com/GiorgiKavtaradze-prog/Datamate/issues)
 
-> **Datamate** is a privacy-first, open-source analytics platform for teams that want to deeply understand their products — without invading their users' privacy.
+---
 
-It combines real-time traffic analytics, funnels, goals, error tracking, Web Vitals, uptime monitoring, and short links with an intelligence layer that detects material changes, investigates them against your own data, and turns findings into durable work that stays open until resolved.
+> [!NOTE]
+> **Datamate** is a privacy-first, open-source product analytics platform. It combines real-time traffic monitoring, funnels, goals, error tracking, Web Vitals, uptime checks, and short links with an **autonomous LLM intelligence layer** that detects metrics anomalies, investigates root causes, and notifies teams.
+
+---
+
+## ⚡ Quick Navigation
+
+| Section                 | Direct Links                                                                                                                  |
+| :---------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
+| 🚀 **Get Started**      | [✨ Features](#-features) • [📡 Integration Snippets](#-start-tracking-your-app) • [📚 Repo Docs](#-repository-guide)         |
+| 🏗️ **Architecture**     | [📐 Monorepo Layout](#-monorepo-layout) • [🔄 How It Works](#-how-it-works) • [💾 Storage Engine](#-storage-engine--data-map) |
+| 💻 **Code Deep Dive**   | [⚡ Code Examples](#-code-examples-deep-dive) • [🛠️ Tech Stack](#%EF%B8%8F-tech-stack-matrix)                                 |
+| ⚙️ **Ops & Deployment** | [🚀 Local Setup](#-local-development) • [🏠 Self-Hosting](#-self-hosting) • [🧪 Testing](#-testing)                           |
+| 🤝 **Community**        | [🤝 Contributing](#-contributing) • [🔒 Security](#-security) • [❓ FAQ](#-faq) • [📄 License](#-license)                     |
+
+---
 
 ## ✨ Features
 
-| Area                | Capabilities                                                                                                                       |
-| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| **Analytics**       | Real-time dashboard, pageviews & screen views, sessions, referrers, devices, geolocation                                           |
-| **Product insight** | Funnels, goals & conversion tracking, custom events, outgoing-link tracking                                                        |
-| **Quality**         | Error tracking, Web Vitals, uptime monitors, public status pages                                                                   |
-| **Growth tools**    | Short links with full click analytics                                                                                              |
-| **Intelligence**    | Automated signal detection, agentic investigation, durable cases across Dashboard & Slack                                          |
-| **Platform**        | Multi-tenant organizations with role-based permissions, type-safe RPC API, data export, GDPR-friendly by design, encrypted secrets |
+| Feature                        | Description                                                               | Tech Highlight                               |
+| :----------------------------- | :------------------------------------------------------------------------ | :------------------------------------------- |
+| 📊 **Real-time Traffic**       | Live visitors, pageviews, sessions, geolocation, browsers, devices        | ClickHouse sub-second columnar query         |
+| 🎯 **Product Funnels & Goals** | Multi-step drop-off analysis, conversion tracking & custom properties     | In-memory aggregations & custom events       |
+| 🛡️ **App Health & Quality**    | Stacktrace error tracking, Core Web Vitals (LCP, CLS, INP), uptime checks | Automatic error grouping & alert triggers    |
+| 🔗 **Short Links & Growth**    | UTM analytics, short link redirection & click counts                      | Edge-cached redirect engine                  |
+| 🤖 **Autonomous Intelligence** | Anomaly detection worker, LLM investigation agent & Slack case sync       | Multi-provider AI (OpenAI, Groq, OpenRouter) |
+| 🔐 **Enterprise Security**     | Organization tenancy, RBAC permissions, zero-cookie option, hashed IPs    | GDPR / CCPA compliant by design              |
 
-On the roadmap: advanced visualization builder, live streaming updates, custom metric definitions, cohort analysis, and A/B testing — see [`ROADMAP.md`](ROADMAP.md) for direction and [`SPEC.md`](SPEC.md) for the product contract.
-
-## 📋 Jump To
-
-|                                                         |                                                      |                                             |
-| ------------------------------------------------------- | ---------------------------------------------------- | ------------------------------------------- |
-| [Features](#-features)                                  | [Start Tracking Your App](#-start-tracking-your-app) | [Repository Guide](#-repository-guide)      |
-| [How It Works](#-how-it-works)                          | [Architecture](#-architecture)                       | [Tech Stack](#-tech-stack)                  |
-| [Local Development](#-local-development)                | [Self-Hosting](#-self-hosting)                       | [Testing](#-testing)                        |
-| [Contributing](#-contributing) · [Security](#-security) | [FAQ](#-faq)                                         | [Support](#-support) · [License](#-license) |
+---
 
 ## 📡 Start Tracking Your App
 
-Adding analytics takes about two minutes. Create a website in the Dashboard, copy its client ID, then pick your integration:
+Integration takes under **2 minutes**. Pick your stack:
 
-**React / Next.js** — install the SDK and mount the component at your app root:
+### ⚛️ React / Next.js (`tsx`)
 
 ```tsx
 import { Datamate } from "@datamate/sdk/react";
@@ -65,38 +76,63 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <head />
-      <Datamate
-        clientId={process.env.NEXT_PUBLIC_DATAMATE_CLIENT_ID!}
-        trackWebVitals
-        trackErrors
-        enableBatching
-      />
+      <head>
+        <Datamate
+          clientId={process.env.NEXT_PUBLIC_DATAMATE_CLIENT_ID!}
+          trackWebVitals
+          trackErrors
+          enableBatching
+        />
+      </head>
       <body>{children}</body>
     </html>
   );
 }
 ```
 
-**Any other stack (vanilla / CMS / tag managers)** — load the tracker script straight from CDN:
+### 🟢 Vue 3 / Nuxt (`ts`)
+
+```ts
+import { createApp } from "vue";
+import { createDatamate } from "@datamate/sdk/vue";
+import App from "./App.vue";
+
+const app = createApp(App);
+app.use(
+  createDatamate({
+    clientId: import.meta.env.VITE_DATAMATE_CLIENT_ID,
+    trackWebVitals: true,
+    trackErrors: true,
+  }),
+);
+app.mount("#app");
+```
+
+### 🌐 Vanilla JS / HTML Script (`html`)
 
 ```html
 <script
   async
   src="https://cdn.datamate.cc/datamate.js"
   data-client-id="YOUR_CLIENT_ID"
+  data-track-web-vitals="true"
+  data-track-errors="true"
 ></script>
 ```
 
-**Custom events anywhere in your app:**
+### ⚡ Custom Event Ingestion (`ts`)
 
 ```ts
 import { track } from "@datamate/sdk";
 
-track("signup_completed", { method: "google", plan: "pro" });
+track("signup_completed", {
+  method: "github",
+  plan: "enterprise",
+  value: 99.0,
+});
 ```
 
-**Server-side events (Node.js / cron / webhooks)** — authenticate with your API key and always `flush()` before the process exits:
+### 🟢 Server-Side Ingestion - Node.js (`ts`)
 
 ```ts
 import { Datamate } from "@datamate/sdk/node";
@@ -104,32 +140,90 @@ import { Datamate } from "@datamate/sdk/node";
 const client = new Datamate({
   apiKey: process.env.DATAMATE_API_KEY!,
   websiteId: process.env.DATAMATE_WEBSITE_ID,
-  source: "backend",
 });
 
 await client.track({
-  name: "job_completed",
-  eventId: `job-${jobId}`, // ⚡ re-sends of the same eventId are deduplicated
-  properties: { queue: "emails", total: 128 },
+  name: "payment_processed",
+  eventId: `pay-${paymentId}`, // ⚡ Deduplicated idempotently
+  properties: { amount: 149.99, currency: "USD" },
 });
-const result = await client.flush();
-if (!result.success) console.error("Failed to flush analytics:", result.error);
+await client.flush();
 ```
 
-> Vue/Nuxt components, server-side tracking (`@datamate/sdk/node`) with batching & `flush()`, feature flags, and a native Swift package are also available — see [`packages/sdk`](packages/sdk/README.md) and the full guides under [`apps/docs/content/docs/sdk`](apps/docs/content/docs/sdk/index.mdx).
+### 📱 iOS / macOS - Swift (`swift`)
+
+```swift
+import DatamateSDK
+
+@main
+struct MyApp: App {
+    init() {
+        Datamate.configure(clientId: "YOUR_CLIENT_ID", trackErrors: true)
+    }
+    var body: some Scene {
+        WindowGroup {
+            ContentView().onAppear {
+                Datamate.track(name: "app_launched", properties: ["os": "iOS"])
+            }
+        }
+    }
+}
+```
+
+### 🐍 Python Backend (`python`)
+
+```python
+import requests
+
+requests.post(
+    "https://basket.datamate.cc/track",
+    headers={"X-Datamate-Client-Id": "YOUR_CLIENT_ID"},
+    json={
+        "type": "event",
+        "name": "model_inference_completed",
+        "properties": {"latency_ms": 142, "tokens": 512},
+    },
+)
+```
+
+### 🦀 Rust Service (`rust`)
+
+```rust
+let client = reqwest::Client::new();
+client.post("https://basket.datamate.cc/track")
+    .header("X-Datamate-Client-Id", "YOUR_CLIENT_ID")
+    .json(&serde_json::json!({
+        "type": "event",
+        "name": "job_processed",
+        "properties": { "queue": "render", "success": true }
+    }))
+    .send().await?;
+```
+
+### 📡 Direct cURL API (`bash`)
+
+```bash
+curl -X POST https://basket.datamate.cc/track \
+  -H "Content-Type: application/json" \
+  -H "X-Datamate-Client-Id: YOUR_CLIENT_ID" \
+  -d '{"type":"event","name":"api_ping","properties":{"env":"prod"}}'
+```
+
+---
 
 ## 📚 Repository Guide
 
-| Document                                                     | What's inside                                           |
-| ------------------------------------------------------------ | ------------------------------------------------------- |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md)                         | Contribution workflow, PR standards, commit conventions |
-| [`AI_POLICY.md`](AI_POLICY.md)                               | Formal rules for disclosing AI assistance               |
-| [`SECURITY.md`](SECURITY.md)                                 | Responsible vulnerability disclosure                    |
-| [`ROADMAP.md`](ROADMAP.md) · [`SPEC.md`](SPEC.md)            | Product direction & product contract                    |
-| [`AGENTS.md`](AGENTS.md)                                     | Coding conventions for AI coding agents in this repo    |
-| [`.env.example`](.env.example)                               | Reference list of every supported environment variable  |
-| [`apps/docs`](apps/docs/content/docs/index.mdx)              | Full product, API & SDK documentation (Fumadocs site)   |
-| [`docker-compose.selfhost.yml`](docker-compose.selfhost.yml) | Production self-hosting compose file                    |
+| Document                                          | Description                                                                    |
+| :------------------------------------------------ | :----------------------------------------------------------------------------- |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md)              | PR workflow, commit conventions (`type(scope): message`), and review standards |
+| [`AI_POLICY.md`](AI_POLICY.md)                    | Mandatory disclosure rules for AI-assisted code contributions                  |
+| [`SECURITY.md`](SECURITY.md)                      | Responsible vulnerability disclosure process                                   |
+| [`ROADMAP.md`](ROADMAP.md) • [`SPEC.md`](SPEC.md) | Product contract, architecture goals, and feature milestones                   |
+| [`AGENTS.md`](AGENTS.md)                          | Strict coding conventions for AI agents working in this monorepo               |
+| [`.env.example`](.env.example)                    | Complete reference of all environment variables                                |
+| [`apps/docs`](apps/docs/content/docs/index.mdx)   | Interactive documentation powered by Fumadocs                                  |
+
+---
 
 ### Not sure where to start?
 
@@ -254,205 +348,224 @@ flowchart LR
 
 ---
 
-## 🏗️ Architecture
+## 💾 Storage Engine & Data Map
 
-### Repository layout
+| Storage Store                        | Managed Data                                    | Purpose                                    |
+| :----------------------------------- | :---------------------------------------------- | :----------------------------------------- |
+| 🗄️ **PostgreSQL 17** _(Drizzle ORM)_ | Users, Orgs, Websites, API Keys, Settings       | Relational ACID transactions               |
+| ⚡ **ClickHouse 25.5** _(Columnar)_  | Events, Pageviews, Errors, Web Vitals, Sessions | Instant aggregations over billions of rows |
+| 🔑 **Redis 7** _(ioredis & BullMQ)_  | Query Cache, BullMQ Queues, Pub/Sub             | Sub-millisecond reads & async workers      |
 
-| Path                                                                                                         | Purpose                                                            |
-| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| `apps/dashboard`                                                                                             | Next.js 16 web application (React 19, TailwindCSS 4)               |
-| `apps/api`                                                                                                   | Elysia.js RPC/API server (port 3001)                               |
-| `apps/basket`                                                                                                | High-throughput analytics event ingestion (port 4000)              |
-| `apps/insights`                                                                                              | Investigation scheduler & worker (port 4002)                       |
-| `apps/status`                                                                                                | Public status pages (port 3002)                                    |
-| `apps/links`                                                                                                 | Short-link redirects & tracking (port 2500)                        |
-| `apps/uptime`                                                                                                | Uptime monitoring checks                                           |
-| `apps/cron`                                                                                                  | Scheduled jobs                                                     |
-| `apps/slack`                                                                                                 | Slack app integration                                              |
-| `apps/docs`                                                                                                  | Documentation site (Fumadocs)                                      |
-| `apps/video`                                                                                                 | Remotion product video workspace                                   |
-| `packages/rpc`                                                                                               | ORPC router — the type-safe API contract between dashboard and API |
-| `packages/db`                                                                                                | Drizzle ORM schemas & clients (PostgreSQL + ClickHouse)            |
-| `packages/auth`                                                                                              | Better-Auth integration & permission system                        |
-| `packages/sdk`                                                                                               | Public analytics SDK (React, Vue, Node.js)                         |
-| `packages/sdk-swift`                                                                                         | Native Swift package for Apple apps                                |
-| `packages/tracker`                                                                                           | Lightweight client tracking script (`datamate.js`) served from CDN |
-| `packages/cache`                                                                                             | Redis-backed Drizzle query caching                                 |
-| `packages/redis`                                                                                             | Redis client, pub/sub, BullMQ queues                               |
-| `packages/ui`                                                                                                | Shared design system                                               |
-| `packages/validation`                                                                                        | Zod schemas                                                        |
-| `packages/ai`                                                                                                | LLM integrations (OpenAI, Groq, OpenRouter)                        |
-| `packages/services`                                                                                          | Cross-cutting business logic                                       |
-| `packages/email`                                                                                             | Transactional email via Resend                                     |
-| `packages/notifications`                                                                                     | Multi-channel alerting (Slack, Discord, Teams, Telegram…)          |
-| `packages/shared` · `mapper` · `query` · `api-keys` · `encryption` · `env` · `migrate` · `devtools` · `test` | Shared types, utilities, and infrastructure                        |
+---
 
-### What lives where
+## ⚡ Code Examples Deep Dive
 
-Storage is split by access pattern — and every query in the codebase follows this map:
+### 1. Type-Safe ORPC Definition (`packages/rpc`)
 
-| Store                    | Owns                                                                                                                                   | Why it fits                                            |
-| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
-| **PostgreSQL** (Drizzle) | Users, organizations, memberships, websites, settings, API keys, relational product state                                              | Transactions, referential integrity, row-level queries |
-| **ClickHouse**           | Events, pageviews, sessions, custom events, errors, Web Vitals, outgoing-link clicks, insight observations & investigation projections | Columnar scans and aggregations over billions of rows  |
-| **Redis**                | Query cache, BullMQ job queues, pub/sub fan-out                                                                                        | Sub-millisecond reads and durable async work           |
+```ts
+import { z } from "zod";
+import { trackedProcedure } from "../middleware/auth";
 
-Rule of thumb: aggregating traffic over time → ClickHouse; identity, configuration, or durable product state → PostgreSQL through Drizzle + `@datamate/cache`.
+export const getWebsiteOverview = trackedProcedure
+  .input(
+    z.object({
+      websiteId: z.string(),
+      period: z.enum(["24h", "7d", "30d"]),
+    }),
+  )
+  .output(
+    z.object({
+      pageviews: z.number(),
+      visitors: z.number(),
+      bounceRate: z.number(),
+    }),
+  )
+  .query(async ({ input, ctx }) => {
+    return ctx.services.analytics.getOverview(input.websiteId, input.period);
+  });
+```
 
-## 💻 Tech Stack
+### 2. Drizzle PostgreSQL Schema (`packages/db`)
 
-| Layer                     | Technology                                                                           |
-| ------------------------- | ------------------------------------------------------------------------------------ |
-| Runtime & package manager | Bun 1.3.14+                                                                          |
-| Frontend                  | Next.js 16 · React 19 · TailwindCSS 4 · Radix UI · Recharts · Jotai · TanStack Query |
-| Backend                   | Elysia.js (Bun-native HTTP framework)                                                |
-| API layer                 | ORPC (type-safe RPC with OpenAPI generation)                                         |
-| Auth                      | Better-Auth                                                                          |
-| Data                      | PostgreSQL 17 · ClickHouse 25.5 · Redis 7 · Drizzle ORM                              |
-| Validation                | Zod 4                                                                                |
-| Quality                   | Biome via Ultracite · Playwright · Turborepo                                         |
+```ts
+import { pgTable, text, timestamp, boolean } from "drizzle-orm/pg-core";
+import { createId } from "@datamate/shared";
+
+export const websites = pgTable("websites", {
+  id: text("id")
+    .primaryKey()
+    .$defaultFn(() => createId("ws")),
+  organizationId: text("organization_id").notNull(),
+  name: text("name").notNull(),
+  domain: text("domain").notNull(),
+  public: boolean("public").default(false).notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+```
+
+### 3. ClickHouse SQL Table Schema (`packages/db`)
+
+```sql
+CREATE TABLE IF NOT EXISTS analytics.events (
+  website_id UUID,
+  session_id UUID,
+  event_name LowCardinality(String),
+  timestamp DateTime64(3, 'UTC'),
+  properties String JSON
+) ENGINE = ReplacingMergeTree()
+ORDER BY (website_id, event_name, timestamp, session_id);
+```
+
+### 4. Elysia.js RPC App (`apps/api`)
+
+```ts
+import { Elysia } from "elysia";
+import { fetchRequestHandler } from "@orpc/server/fetch";
+import { appRouter } from "@datamate/rpc";
+
+export const app = new Elysia()
+  .all("/rpc/*", ({ request }) =>
+    fetchRequestHandler({ router: appRouter, request, prefix: "/rpc" }),
+  )
+  .listen(3001);
+```
+
+---
+
+## 🛠️ Tech Stack Matrix
+
+| Category                  | Technology                                                         |
+| :------------------------ | :----------------------------------------------------------------- |
+| ⚡ **Runtime**            | **Bun 1.3.14+**                                                    |
+| 🎨 **Frontend**           | **Next.js 16 • React 19 • TailwindCSS 4 • Jotai • TanStack Query** |
+| 🚀 **Backend & API**      | **Elysia.js • ORPC • Zod 4**                                       |
+| 🔒 **Auth & Permissions** | **Better-Auth**                                                    |
+| 🗄️ **Databases**          | **PostgreSQL 17 (Drizzle ORM) • ClickHouse 25.5 • Redis 7**        |
+| 🛡️ **Quality**            | **Ultracite (Biome) • Playwright • Turborepo**                     |
+
+---
 
 ## 🚀 Local Development
 
-### Prerequisites
-
-- [Bun](https://bun.sh) 1.3.14+ and Node.js 20+
-- Docker (for PostgreSQL, ClickHouse, and Redis)
-
-### Setup
-
-Prefer a guided experience? Run **`bun run setup`** — an interactive wizard that verifies prerequisites (Bun, Docker) and prepares your `.env`. Otherwise, follow the manual steps below.
+### 1-Step Quick Start
 
 ```bash
-# 1. Install dependencies
-bun install
+bun run setup
+```
 
-# 2. Configure environment
+### Manual Setup
+
+```bash
+# Clone & Install
+git clone https://github.com/GiorgiKavtaradze-prog/Datamate.git
+cd Datamate && bun install
+
+# Environment & Infrastructure
 cp .env.example .env
+docker compose up -d
 
-# 3. Start infrastructure
-docker compose up -d          # PostgreSQL, ClickHouse, Redis
-
-# 4. Initialize databases
-bun run db:push               # Push the PostgreSQL schema
-bun run clickhouse:init       # Create the ClickHouse analytics schema
-
-# 5. Build the public SDK (required once, and after any SDK change)
+# Initialize Databases & SDK
+bun run db:push
+bun run clickhouse:init
 bun run sdk:build
 
-# 6. Start developing
-bun run dev:dashboard         # Dashboard + API (most common workflow)
+# Launch App (Dashboard + API)
+bun run dev:dashboard
 ```
 
-Optionally seed realistic sample data for a website:
+### 🛠️ CLI Commands Cheat Sheet
 
 ```bash
-bun run db:seed <WEBSITE_ID> [EVENT_COUNT]   # default event count: 10,000
+bun run dev:dashboard     # Start Dashboard (:3000) & API (:3001)
+bun run build             # Build all apps & packages
+bun run check-types       # Strict TypeScript typecheck
+bun run lint              # Biome linter check
+bun run db:push           # Apply PostgreSQL schema changes
+bun run clickhouse:init   # Create ClickHouse analytics tables
+bun run db:studio         # Open Drizzle GUI database browser
+bun run test              # Run unit & integration tests
 ```
 
-> All root scripts load `.env` automatically via a `dotenv --` prefix — always run them from the repository root.
-
-### Common commands
-
-| Command                                             | Description                                        |
-| --------------------------------------------------- | -------------------------------------------------- |
-| `bun run dev`                                       | Start all applications in development mode         |
-| `bun run dev:dashboard`                             | Start the dashboard + API only                     |
-| `bun run build`                                     | Production build of every app                      |
-| `bun run lint` / `bun run format`                   | Lint / format with Ultracite (Biome)               |
-| `bun run check-types`                               | Type-check the entire monorepo                     |
-| `bun run test` / `test:watch`                       | Run all tests                                      |
-| `bun run db:push`                                   | Apply schema changes directly (no migration files) |
-| `bun run db:migrate` / `db:deploy`                  | Run / deploy migration files                       |
-| `bun run db:studio`                                 | Open Drizzle Studio GUI                            |
-| `bun run sdk:build`                                 | Build the SDK package                              |
-| `bun run email:dev`                                 | Email template development server                  |
-| `bun run setup`                                     | Interactive prerequisite check & `.env` wizard     |
-| `bun run dev:insights` / `dev:status` / `dev:slack` | Run individual workspaces                          |
-| `bun run test:coverage`                             | Run tests with coverage report                     |
-| `bun run generate-db`                               | Regenerate ClickHouse schema codegen               |
-| `bun run clean`                                     | Remove build artifacts and `node_modules`          |
+---
 
 ## 🏠 Self-Hosting
 
-Datamate can be self-hosted using Docker Compose. The repo includes two compose files:
-
-| File                          | Purpose                                                                                  |
-| ----------------------------- | ---------------------------------------------------------------------------------------- |
-| `docker-compose.yaml`         | **Development only** — starts infrastructure (Postgres, ClickHouse, Redis) for local dev |
-| `docker-compose.selfhost.yml` | **Production / self-hosting** — backend services from GHCR images                        |
-
-### Quick Start
+Deploy with Docker Compose using prebuilt images:
 
 ```bash
-# 1. Configure environment
+# 1. Environment & Infrastructure
 cp .env.example .env
-# Edit .env — set IMAGE_TAG, URL-safe database/cache passwords, public URLs,
-# BETTER_AUTH_SECRET, DATAMATE_ENCRYPTION_KEY, IP_HASH_SALT, and
-# AI_GATEWAY_API_KEY. Make the local database URLs use the same credentials
-# before running the initialization commands below.
-
-# 2. Start databases and cache
 docker compose -f docker-compose.selfhost.yml up -d postgres clickhouse redis
 
-# 3. Initialize databases from the repo checkout (first run only)
-bun install --frozen-lockfile
-bun run db:push
-bun run clickhouse:init
+# 2. Database Init (First run)
+bun run db:push && bun run clickhouse:init
 
-# 4. Start backend services
+# 3. Start Backend Services
 docker compose -f docker-compose.selfhost.yml up -d
 ```
 
-Services started:
+### Services & Ports
 
-- **API** → `localhost:3001`
-- **Basket** (event ingestion) → `localhost:4000`
-- **Insights** (investigation worker) → `localhost:4002`
-- **Links** (short links) → `localhost:2500`
+- 📊 **Dashboard**: `http://localhost:3000`
+- ⚡ **API Server**: `http://localhost:3001`
+- 📥 **Event Ingestion**: `http://localhost:4000`
+- 🤖 **Insights Worker**: `http://localhost:4002`
+- 🔗 **Short Links**: `http://localhost:2500`
 
-All ports are configurable via env vars (`API_PORT`, `BASKET_PORT`, etc.). See the compose file comments for the full env var reference.
+---
 
 ## 🧪 Testing
 
 ```bash
-bun run test           # unit & integration tests across workspaces
-bun run test:watch     # watch mode
+bun run test             # Unit & integration tests
+bun run test:watch       # Test watcher mode
 ```
 
-Dashboard end-to-end tests use Playwright with an isolated per-run database — see [`apps/dashboard/test/e2e`](apps/dashboard/test/e2e) for the runner and standards.
+---
 
-## 🤝 Contributing
+## 🤝 Contributing & AI Policy
 
-Contributions are welcome! Please read [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a pull request — note that the project has a formal [`AI_POLICY.md`](AI_POLICY.md) that requires disclosure of any AI assistance.
+- Review [`CONTRIBUTING.md`](CONTRIBUTING.md) before opening a PR.
+- **AI Policy (`AI_POLICY.md`):** All AI assistance must be explicitly disclosed in PR descriptions.
+
+---
 
 ## 🔒 Security
 
-Found a vulnerability? Please report it responsibly via [`SECURITY.md`](SECURITY.md) — do not open a public issue.
+Found a vulnerability? Report privately via [`SECURITY.md`](SECURITY.md) or email `security@datamate.cc`. Do not open public issues.
 
-**What is Datamate?**
-A privacy-first, open-source analytics platform covering traffic analytics, product funnels, quality signals (errors, Web Vitals, uptime), short links, and an agentic intelligence layer that investigates meaningful changes for you.
+---
 
-**What are the system requirements?**
-Bun 1.3.14+, Node.js 20+, and Docker for the three backing stores. See [Local Development](#-local-development).
+## ❓ FAQ
 
-**Is it privacy-friendly?**
-Privacy-first is a core design constraint, not a marketing flag: visitor IPs are salted and hashed before storage, third-party integration secrets are encrypted at rest, data export is built in, and self-hosting keeps every byte on infrastructure you control.
+<details>
+<summary><b>❓ Is Datamate privacy-friendly and GDPR compliant?</b></summary>
+<br />
+Yes! Visitor IPs are salted & cryptographically hashed, no cookies are required by default, and self-hosting ensures 100% data control.
+</details>
 
-**Which frameworks does the SDK support?**
-React / Next.js, Vue / Nuxt, Node.js server apps, a native Swift package for Apple platforms, and a plain CDN script for anything else (including Google Tag Manager).
+<details>
+<summary><b>❓ Which stacks does the SDK support?</b></summary>
+<br />
+React / Next.js, Vue / Nuxt, Node.js, Swift (iOS/macOS), Python, Rust, and plain CDN HTML scripts.
+</details>
 
-**Can I contribute AI-assisted code?**
-Yes — but all AI usage must be disclosed per [`AI_POLICY.md`](AI_POLICY.md). See [Contributing](#-contributing) before opening a pull request.
+<details>
+<summary><b>❓ What are the hardware requirements?</b></summary>
+<br />
+Local dev requires Bun & Docker. Production self-hosting requires 2+ CPU cores & 4GB+ RAM.
+</details>
 
-## 💬 Support
+## 💬 Support & Community
 
-- [Discord community](https://discord.gg/JTk7a38tCZ)
-- [@trydatamate on X/Twitter](https://twitter.com/trydatamate)
-- [GitHub Issues](https://github.com/GiorgiKavtaradze-prog/Datamate/issues) for bug reports and feature requests
+- 💬 **Discord**: Join the [Datamate Discord Community](https://discord.gg/JTk7a38tCZ)
+- 🐦 **Twitter / X**: Follow [@trydatamate](https://twitter.com/trydatamate)
+- 🐛 **Bug Reports**: Open an issue on [GitHub Issues](https://github.com/GiorgiKavtaradze-prog/Datamate/issues)
+
+---
 
 ## 📄 License
 
-This project is licensed under the MIT License. See [`LICENSE`](LICENSE) for details.
+This project is licensed under the **MIT License**. See the [`LICENSE`](LICENSE) file for details.
 
-Copyright © 2026 GiorgiKavtaradze
+Copyright © 2026 **GiorgiKavtaradze**
