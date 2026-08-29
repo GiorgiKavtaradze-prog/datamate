@@ -39,6 +39,8 @@ const NATIVE_INTERACTIVE_TAGS = new Set([
 const COMPONENT_IMPLEMENTATION_PATHS = [
 	"apps/dashboard/components/ds/",
 	"apps/dashboard/components/ui/",
+	"apps/dashboard/components/magic/",
+	"apps/dashboard/components/aceternity/",
 ];
 
 const APPROVED_ERROR_RESPONSE_PATHS = new Set([
