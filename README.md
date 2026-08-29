@@ -7,8 +7,6 @@
 ╚═════╝ ╚═╝  ╚═╝   ╚═╝   ╚═╝  ╚═╝╚═╝     ╚═╝╚═╝  ╚═╝   ╚═╝   ╚══════╝
 ```
 
-### _Privacy-First, Open-Source Analytics & Autonomous Product Intelligence_
-
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=for-the-badge)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178C6?style=for-the-badge&logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
 [![Bun](https://img.shields.io/badge/Bun-1.3-F9F1E1?style=for-the-badge&logo=bun&logoColor=black)](https://bun.sh/)
@@ -26,24 +24,10 @@
 [![Vercel OSS Program](https://img.shields.io/badge/Vercel-OSS_Program-black.svg?style=flat-square&logo=vercel)](https://vercel.com/oss)
 [![Open Source](https://img.shields.io/badge/open_source-2026-blue.svg?style=flat-square)](LICENSE)
 
-[📖 **Documentation**](apps/docs/content/docs/index.mdx) • [📦 **SDK Guide**](packages/sdk/README.md) • [💬 **Discord Community**](https://discord.gg/JTk7a38tCZ) • [🐦 **Twitter / X**](https://twitter.com/trydatamate) • [🐛 **Report Issue**](https://github.com/GiorgiKavtaradze-prog/Datamate/issues)
-
 ---
 
 > [!NOTE]
 > **Datamate** is a privacy-first, open-source product analytics platform. It combines real-time traffic monitoring, funnels, goals, error tracking, Web Vitals, uptime checks, and short links with an **autonomous LLM intelligence layer** that detects metrics anomalies, investigates root causes, and notifies teams.
-
----
-
-## ⚡ Quick Navigation
-
-| Section                 | Direct Links                                                                                                                  |
-| :---------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
-| 🚀 **Get Started**      | [✨ Features](#-features) • [📡 Integration Snippets](#-start-tracking-your-app) • [📚 Repo Docs](#-repository-guide)         |
-| 🏗️ **Architecture**     | [📐 Monorepo Layout](#-monorepo-layout) • [🔄 How It Works](#-how-it-works) • [💾 Storage Engine](#-storage-engine--data-map) |
-| 💻 **Code Deep Dive**   | [⚡ Code Examples](#-code-examples-deep-dive) • [🛠️ Tech Stack](#%EF%B8%8F-tech-stack-matrix)                                 |
-| ⚙️ **Ops & Deployment** | [🚀 Local Setup](#-local-development) • [🏠 Self-Hosting](#-self-hosting) • [🧪 Testing](#-testing)                           |
-| 🤝 **Community**        | [🤝 Contributing](#-contributing) • [🔒 Security](#-security) • [❓ FAQ](#-faq) • [📄 License](#-license)                     |
 
 ---
 
@@ -186,20 +170,6 @@ requests.post(
 )
 ```
 
-### 🦀 Rust Service (`rust`)
-
-```rust
-let client = reqwest::Client::new();
-client.post("https://basket.datamate.cc/track")
-    .header("X-Datamate-Client-Id", "YOUR_CLIENT_ID")
-    .json(&serde_json::json!({
-        "type": "event",
-        "name": "job_processed",
-        "properties": { "queue": "render", "success": true }
-    }))
-    .send().await?;
-```
-
 ### 📡 Direct cURL API (`bash`)
 
 ```bash
@@ -208,20 +178,6 @@ curl -X POST https://basket.datamate.cc/track \
   -H "X-Datamate-Client-Id: YOUR_CLIENT_ID" \
   -d '{"type":"event","name":"api_ping","properties":{"env":"prod"}}'
 ```
-
----
-
-## 📚 Repository Guide
-
-| Document                                          | Description                                                                    |
-| :------------------------------------------------ | :----------------------------------------------------------------------------- |
-| [`CONTRIBUTING.md`](CONTRIBUTING.md)              | PR workflow, commit conventions (`type(scope): message`), and review standards |
-| [`AI_POLICY.md`](AI_POLICY.md)                    | Mandatory disclosure rules for AI-assisted code contributions                  |
-| [`SECURITY.md`](SECURITY.md)                      | Responsible vulnerability disclosure process                                   |
-| [`ROADMAP.md`](ROADMAP.md) • [`SPEC.md`](SPEC.md) | Product contract, architecture goals, and feature milestones                   |
-| [`AGENTS.md`](AGENTS.md)                          | Strict coding conventions for AI agents working in this monorepo               |
-| [`.env.example`](.env.example)                    | Complete reference of all environment variables                                |
-| [`apps/docs`](apps/docs/content/docs/index.mdx)   | Interactive documentation powered by Fumadocs                                  |
 
 ---
 
@@ -432,19 +388,6 @@ export const app = new Elysia()
 
 ---
 
-## 🛠️ Tech Stack Matrix
-
-| Category                  | Technology                                                         |
-| :------------------------ | :----------------------------------------------------------------- |
-| ⚡ **Runtime**            | **Bun 1.3.14+**                                                    |
-| 🎨 **Frontend**           | **Next.js 16 • React 19 • TailwindCSS 4 • Jotai • TanStack Query** |
-| 🚀 **Backend & API**      | **Elysia.js • ORPC • Zod 4**                                       |
-| 🔒 **Auth & Permissions** | **Better-Auth**                                                    |
-| 🗄️ **Databases**          | **PostgreSQL 17 (Drizzle ORM) • ClickHouse 25.5 • Redis 7**        |
-| 🛡️ **Quality**            | **Ultracite (Biome) • Playwright • Turborepo**                     |
-
----
-
 ## 🚀 Local Development
 
 ### 1-Step Quick Start
@@ -457,8 +400,8 @@ bun run setup
 
 ```bash
 # Clone & Install
-git clone https://github.com/GiorgiKavtaradze-prog/Datamate.git
-cd Datamate && bun install
+git clone https://github.com/GiorgiKavtaradze-prog/datamate.git
+cd datamate && bun install
 
 # Environment & Infrastructure
 cp .env.example .env
@@ -535,26 +478,6 @@ bun run test:watch       # Test watcher mode
 Found a vulnerability? Report privately via [`SECURITY.md`](SECURITY.md) or email `security@datamate.cc`. Do not open public issues.
 
 ---
-
-## ❓ FAQ
-
-<details>
-<summary><b>❓ Is Datamate privacy-friendly and GDPR compliant?</b></summary>
-<br />
-Yes! Visitor IPs are salted & cryptographically hashed, no cookies are required by default, and self-hosting ensures 100% data control.
-</details>
-
-<details>
-<summary><b>❓ Which stacks does the SDK support?</b></summary>
-<br />
-React / Next.js, Vue / Nuxt, Node.js, Swift (iOS/macOS), Python, Rust, and plain CDN HTML scripts.
-</details>
-
-<details>
-<summary><b>❓ What are the hardware requirements?</b></summary>
-<br />
-Local dev requires Bun & Docker. Production self-hosting requires 2+ CPU cores & 4GB+ RAM.
-</details>
 
 ## 💬 Support & Community
 
