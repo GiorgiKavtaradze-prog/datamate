@@ -78,10 +78,14 @@ const nextConfig: NextConfig = {
 		];
 
 		const isDev = process.env.NODE_ENV === "development";
-		const localhostSources = isDev
+		const publicApiUrl = process.env.NEXT_PUBLIC_API_URL ?? "";
+		const isLocalApi =
+			publicApiUrl.includes("localhost") || publicApiUrl.includes("127.0.0.1");
+		const allowLocalhost = isDev || isLocalApi;
+		const localhostSources = allowLocalhost
 			? "http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:*"
 			: false;
-		const localFrameAncestorSources = isDev
+		const localFrameAncestorSources = allowLocalhost
 			? "http://localhost:* http://127.0.0.1:*"
 			: false;
 		const connectSources = joinCspSources(
