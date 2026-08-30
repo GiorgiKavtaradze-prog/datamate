@@ -130,6 +130,13 @@
   --animate-line-shadow: line-shadow 15s linear infinite;
   --animate-background-position-spin: background-position-spin 3000ms infinite
     alternate;
+  --animate-magic-pulse: magic-pulse var(--duration) ease-out infinite;
+  --animate-magic-pulse-ripple: magic-pulse-ripple var(--duration)
+    cubic-bezier(0.16, 1, 0.3, 1) infinite;
+  --animate-magic-ripple: ripple var(--duration, 2s) ease
+    calc(var(--i, 0) * 0.2s) infinite;
+  --animate-rainbow: rainbow var(--speed, 2s) infinite linear;
+  --animate-shine: shine var(--duration) infinite linear;
 
   /* Animation Keyframes */
   @keyframes accordion-down {
@@ -327,6 +334,44 @@
     }
     100% {
       background-position: bottom center;
+    }
+  }
+  @keyframes magic-pulse {
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 var(--pulse-color, oklch(from var(--bg) l c h / 0.5));
+    }
+    50% {
+      box-shadow: 0 0 0 var(--distance)
+        var(--pulse-color, oklch(from var(--bg) l c h / 0.5));
+    }
+  }
+  @keyframes magic-pulse-ripple {
+    0% {
+      box-shadow: 0 0 0 0 oklch(from var(--pulse-color, var(--bg)) l c h / 1);
+    }
+    100% {
+      box-shadow: 0 0 0 var(--distance)
+        oklch(from var(--pulse-color, var(--bg)) l c h / 0);
+    }
+  }
+  @keyframes rainbow {
+    0% {
+      background-position: 0%;
+    }
+    100% {
+      background-position: 200%;
+    }
+  }
+  @keyframes shine {
+    0% {
+      background-position: 0% 0%;
+    }
+    50% {
+      background-position: 100% 100%;
+    }
+    to {
+      background-position: 0% 0%;
     }
   }
 }
@@ -557,6 +602,13 @@
   --brand-coral: #b74677;
   --brand-purple: #453c7c;
 
+  /* Magic UI rainbow gradient (RainbowButton) */
+  --color-1: oklch(66.2% 0.225 25.9);
+  --color-2: oklch(60.4% 0.26 302);
+  --color-3: oklch(69.6% 0.165 251);
+  --color-4: oklch(80.2% 0.134 225);
+  --color-5: oklch(90.7% 0.231 133);
+
   --secondary: #edeef2;
   --secondary-brighter: #f3f4f7;
   --secondary-brightest: #fafafb;
@@ -648,6 +700,14 @@
 
   --primary: #e7e8eb;
   --primary-foreground: #27282d;
+
+  /* Magic UI rainbow gradient (RainbowButton) */
+  --color-1: oklch(66.2% 0.225 25.9);
+  --color-2: oklch(60.4% 0.26 302);
+  --color-3: oklch(69.6% 0.165 251);
+  --color-4: oklch(80.2% 0.134 225);
+  --color-5: oklch(90.7% 0.231 133);
+
   --secondary: #2a2a31;
   --secondary-brighter: #323239;
   --secondary-brightest: #3a3a42;
