@@ -127,6 +127,9 @@
   --shadow-input:
     0px 2px 3px -1px rgba(0, 0, 0, 0.1), 0px 1px 0px 0px rgba(0, 0, 25, 0.1),
     0px 1px 0px 0px rgba(0, 0, 50, 0.06);
+  --animate-line-shadow: line-shadow 15s linear infinite;
+  --animate-background-position-spin: background-position-spin 3000ms infinite
+    alternate;
 
   /* Animation Keyframes */
   @keyframes accordion-down {
@@ -223,9 +226,6 @@
       opacity: 0;
     }
   }
-  .animate-ripple {
-    animation: ripple var(--ripple-duration, 600ms) ease-out forwards;
-  }
   @keyframes shiny-text {
     0%,
     90%,
@@ -292,17 +292,47 @@
     }
   }
   @keyframes aurora {
-    from {
-      background-position:
-        50% 50%,
-        50% 50%;
+    0% {
+      background-position: 0% 50%;
+      transform: rotate(-5deg) scale(0.9);
     }
-    to {
-      background-position:
-        350% 100%,
-        -100% -10%;
+    25% {
+      background-position: 50% 100%;
+      transform: rotate(5deg) scale(1.1);
+    }
+    50% {
+      background-position: 100% 50%;
+      transform: rotate(-3deg) scale(0.95);
+    }
+    75% {
+      background-position: 50% 0%;
+      transform: rotate(3deg) scale(1.05);
+    }
+    100% {
+      background-position: 0% 50%;
+      transform: rotate(-5deg) scale(0.9);
     }
   }
+  @keyframes line-shadow {
+    0% {
+      background-position: 0 0;
+    }
+    100% {
+      background-position: 100% -100%;
+    }
+  }
+  @keyframes background-position-spin {
+    0% {
+      background-position: top center;
+    }
+    100% {
+      background-position: bottom center;
+    }
+  }
+}
+
+.animate-ripple {
+  animation: ripple var(--ripple-duration, 600ms) ease-out forwards;
 }
 
 @utility transition-bg {
@@ -1921,4 +1951,9 @@
     transition: none !important;
     animation: none !important;
   }
+}
+::view-transition-old(root),
+::view-transition-new(root) {
+  mix-blend-mode: normal;
+  animation: none;
 }
